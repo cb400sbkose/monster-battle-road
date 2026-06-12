@@ -23,6 +23,11 @@
   #info-row { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px; }
   #wave-info { font-size:12px; color:#8fe3ff; font-weight:700; }
   #sort-row { display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:5px; }
+  #stage-row { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:4px; }
+  #stage-label { font-size:12.5px; font-weight:900; color:#ffd95e; min-width:88px; text-align:center; }
+  .fav-btn { position:absolute; bottom:3px; right:4px; background:none; border:none; font-size:14px; color:#ff7daa; cursor:pointer; padding:2px; line-height:1; }
+  .fav-btn:not(.on) { opacity:.4; }
+  .tk-btn { display:block; width:100%; margin-top:4px; padding:5px 2px; border:none; border-radius:7px; font-size:10px; font-weight:800; color:#00253a; background:linear-gradient(180deg,#aef4ff,#3ec8ff); cursor:pointer; }
   .sort-lbl { font-size:9px; color:#99a; }
   .sort-btn { padding:3px 8px; border:1px solid #4a3f7a; border-radius:7px; background:#241a4a; color:#bbc; font-size:10px; font-weight:700; cursor:pointer; }
   .sort-btn.sel { background:linear-gradient(180deg,#ffe9a0,#ffc44e); color:#2a1a00; border-color:#ffe9a0; }
@@ -258,8 +263,8 @@
 
   <div id="screen-select" class="screen">
     <div class="sel-title">⚔ アストラルバトルロード 3D ⚔</div>
-    <div class="sel-sub">─ でんせつの50体をあつめ、星の頂をめざせ ─</div>
     <div id="info-row"><span id="wave-info"></span><button id="save-btn">💾</button><button id="bgm-btn">🔊</button><button id="zukan-btn">📖 図鑑</button><button id="fusion-btn">⚡合体</button></div>
+    <div id="stage-row"><button id="st-prev" class="sort-btn">◀</button><span id="stage-label"></span><button id="st-next" class="sort-btn">▶</button><span class="sort-lbl" id="stage-max"></span></div>
     <div id="sort-row"><span class="sort-lbl">ならべかえ</span><button class="sort-btn sel" data-s="rare">レア</button><button class="sort-btn" data-s="el">属性</button><button class="sort-btn" data-s="shape">種族</button><button class="sort-btn" data-s="lv">Lv</button><button class="sort-btn" data-s="id">番号</button></div>
     <div id="card-grid"></div>
     <div id="mode-row">
@@ -669,6 +674,7 @@ const state = {
   mods: { A:[], B:[] },     // {stat:'atk'|'spd'|'def', mult, turns}
   pendingSp: null, pendingRaid: null,
   lastParty: [],
+  maxStage: 1, tickets: 0, favs: [],
   phase: 'select',
   ended: false,
   bossBattle: false,
@@ -687,7 +693,6 @@ const pvp = {
 /* ---------------- セーブ / ロード ---------------- */
 const SAVE_KEY_LEGACY = 'astral_battle_road_v2';
 const PROFILE_KEY = 'astral_profile';
-const CHEAT_ID = 'マスタードラゴン';
 let profileId = 'noid';
 try{ profileId = localStorage.getItem(PROFILE_KEY) || 'noid'; }catch(e){}
 const SAVE_KEY_OF = () => 'astral_battle_road_v3:' + profileId;
@@ -724,7 +729,7 @@ function saveGame(){
     localStorage.setItem(SAVE_KEY_OF(), JSON.stringify({
       v:3, owned:state.owned, stage:state.stage, stageBattle:state.stageBattle,
       streak:state.streak, allClear:state.allClear, dex:[...state.dex], lvr:true,
-      lastParty:state.lastParty,
+      lastParty:state.lastParty, maxStage:state.maxStage, tickets:state.tickets, favs:state.favs,
     }));
   }catch(e){}
 }
@@ -746,6 +751,9 @@ function loadGame(){
       state.streak = Math.max(0, d.streak|0);
       state.allClear = !!d.allClear;
       state.lastParty = Array.isArray(d.lastParty) ? d.lastParty.filter(id=>CARD_POOL.some(c=>c.id===id)).slice(0,3) : [];
+      state.maxStage = Math.max(state.stage, Math.min(9999, d.maxStage|0 || 1));
+      state.tickets = Math.max(0, Math.min(999, d.tickets|0));
+      state.favs = Array.isArray(d.favs) ? d.favs.filter(id=>CARD_POOL.some(c=>c.id===id)) : [];
     }
   }catch(e){}
   if(Object.keys(state.owned).length===0){
@@ -760,16 +768,10 @@ function resetProgress(){
   state.dex = new Set([1,15,2,16]);
   state.stage = 1; state.stageBattle = 1; state.streak = 0; state.allClear = false;
 }
-function unlockAll(){
-  state.owned = {};
-  CARD_POOL.forEach(c => { state.owned[c.id] = 7; });
-  state.dex = new Set(CARD_POOL.map(c=>c.id));
-}
 function switchProfile(id){
   saveGame();
   profileId = id;
   try{ localStorage.setItem(PROFILE_KEY, id); }catch(e){}
-  if(id === CHEAT_ID){ unlockAll(); saveGame(); return 'cheat'; }
   const before = JSON.stringify(state.owned);
   resetProgress();
   loadGame();
@@ -1222,6 +1224,8 @@ function tileHtml(c, lv){
 function renderSelect(){
   state.picked = [];
   const ownedIds = Object.keys(state.owned).map(Number).sort((a,b)=>{
+    const fa = state.favs.includes(a)?0:1, fb = state.favs.includes(b)?0:1;
+    if(fa!==fb) return fa-fb; // ♥お気に入りを先頭に
     const ca = cardById(a), cb = cardById(b);
     switch(sortMode){
       case 'el':    return (EL_ORDER[ca.el]-EL_ORDER[cb.el]) || (cb.rare-ca.rare) || (a-b);
@@ -1241,12 +1245,31 @@ function renderSelect(){
     const tile = document.createElement('div');
     tile.className = 'card-tile r' + c.rare;
     tile.dataset.cid = id;
+    const isFav = state.favs.includes(id);
     tile.innerHTML = tileHtml(c, lv)
       + (lv>1 ? `<div class="lv-badge">Lv${lv}</div>` : '')
-      + (canEvolve(id) ? '<div class="t-evo">✨進化できる！(図鑑へ)</div>' : '');
+      + (canEvolve(id) ? '<div class="t-evo">✨進化できる！(図鑑へ)</div>' : '')
+      + `<button class="fav-btn${isFav?' on':''}" data-fav="${id}">${isFav?'♥':'♡'}</button>`;
     tile.addEventListener('click', ()=>togglePick(id));
     grid.appendChild(tile);
   }
+  grid.querySelectorAll('.fav-btn').forEach(b=>{
+    b.addEventListener('click', (ev)=>{
+      ev.stopPropagation();
+      const id = +b.dataset.fav;
+      const fi = state.favs.indexOf(id);
+      if(fi>=0) state.favs.splice(fi,1); else state.favs.push(id);
+      saveGame(); sndSelect();
+      const keep = [...state.picked];
+      renderSelect();
+      state.picked = keep.filter(x=>state.owned[x]).slice(0,3);
+      refreshPickBadges(); updateModeBtns();
+    });
+  });
+  $('#stage-label').textContent = `ステージ ${state.stage}`;
+  $('#stage-max').textContent = `(とうたつ S${state.maxStage})`;
+  $('#st-prev').disabled = state.stage<=1;
+  $('#st-next').disabled = state.stage>=state.maxStage;
   // 前回つかったパーティを自動セット
   for(const id of state.lastParty){
     if(state.owned[id] && !state.picked.includes(id) && state.picked.length<3) state.picked.push(id);
@@ -1315,6 +1338,9 @@ function renderZukan(){
       if(lv){
         tile.innerHTML += (ev ? `<div class="evo-note">Lv${ev.lv}で → ${state.dex.has(ev.to) ? cardById(ev.to).name : '？？？'}</div>` : '');
         if(canEvolve(c.id)) tile.innerHTML += `<button class="evo-btn" data-evo="${c.id}">✨ しんかさせる！</button>`;
+        if(state.tickets>0 && lv<MAX_LV) tile.innerHTML += `<button class="tk-btn" data-tk="${c.id}">🎫 Lv+1する</button>`;
+      } else if(state.tickets>0){
+        tile.innerHTML += `<button class="tk-btn" data-tk="${c.id}">🎫 ゲットする</button>`;
       }
     } else {
       tile.className = 'z-tile unknown';
@@ -1323,9 +1349,27 @@ function renderZukan(){
         <div class="t-name">No.${c.id} ？？？</div>
         <div class="t-rare">${'★'.repeat(c.rare)}</div>
         <div class="t-stats">未発見<br>　<br>　</div>`;
+      if(state.tickets>0) tile.innerHTML += `<button class="tk-btn" data-tk="${c.id}">🎫 ゲットする</button>`;
     }
     grid.appendChild(tile);
   }
+  grid.querySelectorAll('.tk-btn').forEach(b=>{
+    b.addEventListener('click', ()=>{
+      if(state.tickets<=0) return;
+      const id = +b.dataset.tk;
+      const cur = state.owned[id] || 0;
+      if(cur >= MAX_LV) return;
+      state.tickets--;
+      state.owned[id] = cur + 1;
+      state.dex.add(id);
+      saveGame();
+      sndWin();
+      renderZukan();
+      $('#zukan-count').textContent = cur===0
+        ? `🎫 ${cardById(id).name}を ゲットした！！（のこり${state.tickets}まい）`
+        : `🎫 ${cardById(id).name}が Lv${cur+1}に なった！（のこり${state.tickets}まい）`;
+    });
+  });
   grid.querySelectorAll('.evo-btn').forEach(b=>{
     b.addEventListener('click', ()=>{
       const from = cardById(+b.dataset.evo);
@@ -1337,7 +1381,7 @@ function renderZukan(){
       }
     });
   });
-  $('#zukan-count').textContent = `ゲット数 ${got} / ${CARD_POOL.length}`;
+  $('#zukan-count').textContent = `ゲット数 ${got} / ${CARD_POOL.length}` + (state.tickets>0 ? ` ／ 🎫チケット ${state.tickets}まい (下のボタンでつかえる)` : '');
   showScreen('zukan');
 }
 $('#zukan-btn').addEventListener('click', ()=>{ sndSelect(); renderZukan(); });
@@ -1364,6 +1408,20 @@ function renderFusionList(){
 }
 $('#fusion-btn').addEventListener('click', ()=>{ sndSelect(); renderFusionList(); });
 $('#fusionlist-close').addEventListener('click', ()=>{ sndSelect(); renderSelect(); });
+/* ---------------- ステージ選択 ---------------- */
+function jumpStage(dir){
+  const to = state.stage + dir;
+  if(to < 1 || to > state.maxStage) return;
+  state.stage = to;
+  state.stageBattle = 1;
+  saveGame(); sndSelect();
+  const keep = [...state.picked];
+  renderSelect();
+  state.picked = keep.filter(id=>state.owned[id]).slice(0,3);
+  refreshPickBadges(); updateModeBtns();
+}
+$('#st-prev').addEventListener('click', ()=>jumpStage(-1));
+$('#st-next').addEventListener('click', ()=>jumpStage(1));
 /* ---------------- 並べ替え ---------------- */
 let sortMode = 'rare';
 const EL_ORDER = { fire:0, ice:1, thunder:2, earth:3, slash:4, phys:5, dark:6, holy:7 };
@@ -2617,6 +2675,7 @@ async function endBattle(win, note){
         }
         state.stage++;
         state.stageBattle = 1;
+        state.maxStage = Math.max(state.maxStage, state.stage);
       } else {
         state.stageBattle++;
         progMsg = wasBoss ? `👑 ボス撃破！ 次は第${state.stageBattle}戦！` : `次は第${state.stageBattle}戦！ (連勝${state.streak})`;
@@ -2645,13 +2704,18 @@ async function endBattle(win, note){
     else dropMsg = 'Lv MAX！ (これ以上は強化できない)';
   }
   state.dex.add(reward.id); // にげられても図鑑には「見た」で登録
+  let ticketMsg = '';
+  if(Math.random() < 0.01){
+    state.tickets = (state.tickets||0) + 1;
+    ticketMsg = '\n🎫 アストラルチケットを ひろった！！（図鑑でつかえる・すきなモンスターをゲット/Lv+1）';
+  }
   saveGame();
 
   $('#result-title').textContent = win ? 'WIN！！' : 'LOSE...';
   $('#result-title').className = win ? 'win' : 'lose';
-  $('#result-msg').textContent = isPvp
+  $('#result-msg').textContent = (isPvp
     ? (win ? `合言葉マッチに勝利！ ${note||''}` : '合言葉マッチで敗北… リベンジだ！')
-    : progMsg;
+    : progMsg) + ticketMsg;
   $('#next-btn').classList.add('hidden');
   showScreen('result');
   await runGachaSequence(reward, { isKira, captured, capRate, dropMsg, lvAfter: state.owned[reward.id] || 1 });
@@ -2675,8 +2739,7 @@ $('#profile-btn').addEventListener('click', ()=>{
   const r = switchProfile(t);
   renderSelect();
   $('#save-overlay').classList.remove('hidden');
-  if(r==='cheat'){ sndWin(); refreshSaveUI('✨ ひみつのID発動！ 全50種・Lv7で解放されたぞ！！'); }
-  else if(r==='new'){ sndSelect(); refreshSaveUI(`ID「${t}」で新しい冒険をはじめたよ！`); }
+  if(r==='new'){ sndSelect(); refreshSaveUI(`ID「${t}」で新しい冒険をはじめたよ！`); }
   else { sndSelect(); refreshSaveUI(`ID「${t}」のデータを読み込んだよ！`); }
 });
 $('#spell-copy').addEventListener('click', async ()=>{
@@ -2691,13 +2754,6 @@ $('#spell-copy').addEventListener('click', async ()=>{
 $('#spell-go').addEventListener('click', ()=>{
   const sp = $('#spell-in').value.trim();
   if(!sp){ $('#spell-status').textContent = 'じゅもんを入れてね'; return; }
-  if(sp === CHEAT_ID){
-    unlockAll(); saveGame(); renderSelect();
-    sndWin(); refreshSaveUI('✨ ひみつのじゅもん発動！ 全50種・Lv7で解放されたぞ！！');
-    $('#save-overlay').classList.remove('hidden');
-    $('#spell-in').value = '';
-    return;
-  }
   if(readSpell(sp)){
     renderSelect();
     sndWin();
