@@ -2071,7 +2071,8 @@ async function performSkill(u, skill){
     const missCh = (traitOf(u)==='sniper') ? 0 : 0.10 + (traitOf(t)==='mirage' ? 0.10 : 0);
     const miss = rngFn() < missCh;
     const crit = (traitOf(u)==='crit') && rngFn() < 0.15;
-    let dmg = calcDmg(atk, skill.mult*eff);
+    // 単体ワザ強化: 全体ワザ(3体×0.8〜0.95倍)に対して単体は1.35倍で「集中して1体を落とす」戦略を成立させる
+    let dmg = calcDmg(atk, skill.mult*eff*(skill.target==='all' ? 1 : 1.35));
     if(crit) dmg = Math.round(dmg*1.5);
     return { t, eff, miss, crit, dmg,
       st:(!miss && skill.st && rngFn() < skill.st.ch) ? skill.st.k : null };
