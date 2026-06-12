@@ -79,6 +79,14 @@
   .popup.dmg-enemy { color:#ffe96a; }
   .popup.big { font-size:30px; color:#ff9a2e; }
   .popup.miss { color:#b8c4d8; font-size:17px; }
+  #rule-row { width:100%; display:flex; gap:6px; }
+  #rule-row .mini-btn { flex:1; background:#241a4a; color:#bbc; border:1px solid #4a3f7a; }
+  #rule-row .mini-btn.rsel { background:linear-gradient(180deg,#ffe27a,#ffae2e); color:#3a2400; border-color:#ffe9a0; }
+  .skill-btn.guard-btn { background:#173050; color:#bcd8ff; }
+  .skill-btn.guard-btn.sel { background:linear-gradient(180deg,#9ecbff,#4a90e2); color:#06243f; border-color:#cde6ff; box-shadow:0 0 8px #4a90e2; }
+  #emote-row { position:absolute; right:6px; top:46px; display:flex; flex-direction:column; gap:6px; z-index:25; }
+  .emo-btn { font-size:17px; padding:4px 6px; background:#000a; border:1px solid #4a3f7a; border-radius:8px; cursor:pointer; }
+  #emote-pop { position:absolute; top:44px; left:50%; transform:translateX(-50%); font-size:15px; font-weight:900; color:#fff; text-shadow:0 2px 6px #000; pointer-events:none; opacity:0; transition:opacity .3s; z-index:26; background:#000a; padding:4px 10px; border-radius:12px; }
   .popup.gauge { color:#7df0ff; font-size:18px; }
   @keyframes popfloat { 0%{opacity:0;transform:translate(-50%,-30%) scale(.5);} 15%{opacity:1;transform:translate(-50%,-60%) scale(1.25);} 30%{transform:translate(-50%,-70%) scale(1);} 100%{opacity:0;transform:translate(-50%,-150%) scale(1);} }
   #flash { position:absolute; inset:0; pointer-events:none; opacity:0; background:#fff; }
@@ -245,12 +253,13 @@
       <button id="match-btn" class="big-btn" disabled>合言葉マッチ</button>
     </div>
     <div id="match-panel" class="hidden">
+      <div id="rule-row"><button id="rule-flat" class="mini-btn rsel">⚖ Lv1ルール</button><button id="rule-lv" class="mini-btn">💪 育成Lvルール</button></div>
       <input id="word-input" maxlength="12" placeholder="あいことば（友達と同じ言葉）">
       <button id="match-start" class="mini-btn">開始</button>
       <button id="match-cancel" class="mini-btn">やめる</button>
       <div id="match-status"></div>
     </div>
-    <div class="howto">カード3枚で出撃！ 属性の相性と「合体技」、ゲージMAXの「超必殺技」をつかいこなせ！<br>⚡突撃は<b>リアルタイムじゃんけん</b>でゲージ強奪(1バトル1回)。10戦ごとにボス(キラ率UP)！ Lvアップは同じカードをゲットした時だけ！<br>30戦でステージクリア！ まけてもチェックポイントからさいかい。図鑑で<b>✨進化</b>、とくていの3体で<b>⚡三体合体</b>(例:ヴォルクドラコ＋マグマロン＋ヴァルタイガ)！</div>
+    <div class="howto">カード3枚で出撃！ 属性の相性と「合体技」、ゲージMAXの「超必殺技」をつかいこなせ！<br>⚡突撃は<b>リアルタイムじゃんけん</b>でゲージ強奪(1バトル1回)。10戦ごとにボス(キラ率UP)！ Lvアップは同じカードをゲットした時だけ！<br>30戦でステージクリア！ まけてもチェックポイントからさいかい。図鑑で<b>✨進化</b>、とくていの3体で<b>⚡三体合体</b>(全8種・例:ヴォルクドラコ＋マグマロン＋ヴァルタイガ)！ 🛡ガードで読み合い、ステージは無限につづく！</div>
   </div>
 
   <div id="screen-zukan" class="screen hidden">
@@ -271,6 +280,8 @@
       <div id="flash"></div>
       <div id="banner"></div>
       <div id="topbar"><span id="tb-wave"></span><span id="tb-opp"></span><span><button id="spd-btn">⏩x1</button> <span id="tb-turn"></span></span></div>
+      <div id="emote-row" class="hidden"><button class="emo-btn">👍</button><button class="emo-btn">🔥</button><button class="emo-btn">😱</button><button class="emo-btn">🙏</button></div>
+      <div id="emote-pop"></div>
       <div id="overlay-panel" class="hidden"></div>
     </div>
     <div id="battle-ui">
@@ -417,6 +428,61 @@ const CARD_POOL = [
   // ━━━ ★5 (2種) ━━━
   { id:49, name:'ゼノヴァルド',     shape:'cone',       color:0x8800ff, hp:320, atk:40, spd:13, rare:5, el:'dark', skills:[S('ゼノフレア','fire',1.1,'all'), S('エンドクロー','slash',1.4)] },
   { id:50, name:'アストラディア',   shape:'torus',      color:0xffd700, hp:305, atk:38, spd:14, rare:5, el:'holy', skills:[S('アストラルレイ','holy',1.1,'all'), S('スターヒール','heal',1.9,'allies')] },
+  // ━━━ 追加組 ★1 (14種) ━━━
+  { id:51, name:'コロポン',         shape:'sphere',     color:0xffbb66, hp:178, atk:23, spd:10, rare:1, el:'earth', skills:[S('ころがりアタック','phys',1.05), S('すなつぶて','earth',1.05)] },
+  { id:52, name:'ピヨルル',         shape:'octahedron', color:0xffee99, hp:160, atk:22, spd:12, rare:1, el:'thunder', skills:[S('ピヨピヨばたき','phys',1.0), S('ちいさないなずま','thunder',1.05,'one',{k:'par',ch:0.2})] },
+  { id:53, name:'モクモック',       shape:'cylinder',   color:0x88aa66, hp:200, atk:22, spd:7,  rare:1, el:'earth', skills:[S('こもれびパンチ','phys',1.1), S('ねむりのこな','dark',0.95,'one',{k:'slp',ch:0.45})] },
+  { id:54, name:'シズクン',         shape:'sphere',     color:0x66bbee, hp:182, atk:22, spd:10, rare:1, el:'ice', skills:[S('しずくとばし','ice',1.05), S('みずのまく','phys',0.95)] },
+  { id:55, name:'ホタルビ',         shape:'sphere',     color:0xffdd88, hp:168, atk:23, spd:11, rare:1, el:'fire', skills:[S('ひのこまい','fire',1.0), S('あかりのまい','heal',1.1,'allies')] },
+  { id:56, name:'イシコロン',       shape:'cube',       color:0xaaa088, hp:210, atk:24, spd:6,  rare:1, el:'earth', skills:[S('いしあたま','phys',1.15), S('がれきとばし','earth',0.8,'all')] },
+  { id:57, name:'カゼリン',         shape:'octahedron', color:0xaaeedd, hp:165, atk:23, spd:12, rare:1, el:'slash', skills:[S('かぜのやいば','slash',1.1), S('まいあがりづき','phys',0.95)] },
+  { id:58, name:'ドクダケ',         shape:'cylinder',   color:0xbb77aa, hp:192, atk:22, spd:8,  rare:1, el:'dark', skills:[S('かさアタック','phys',1.0), S('どくかびまき','dark',0.9,'one',{k:'psn',ch:0.5})] },
+  { id:59, name:'ユラメラ',         shape:'cone',       color:0xff9944, hp:170, atk:24, spd:11, rare:1, el:'fire', skills:[S('ゆらめくほのお','fire',1.1), S('すすはらい','phys',0.95)] },
+  { id:60, name:'プチレイス',       shape:'sphere',     color:0xccccff, hp:163, atk:22, spd:12, rare:1, el:'dark', skills:[S('すけるツメ','phys',1.05), S('つめたいいき','ice',1.0)] },
+  { id:61, name:'タネマル',         shape:'sphere',     color:0x99cc55, hp:185, atk:23, spd:9,  rare:1, el:'earth', skills:[S('タネマシンガン','phys',1.1), S('つるのムチ','phys',1.0)] },
+  { id:62, name:'チクリン',         shape:'cube',       color:0x779977, hp:188, atk:23, spd:8,  rare:1, el:'slash', skills:[S('はりやまアタック','slash',1.05), S('とげとばし','phys',1.0)] },
+  { id:63, name:'ピカリ',           shape:'octahedron', color:0xfff499, hp:162, atk:23, spd:12, rare:1, el:'holy', skills:[S('ひかりのつぶ','holy',1.05), S('まばゆいせんこう','thunder',0.95)] },
+  { id:64, name:'ヨロイダマ',       shape:'cube',       color:0x8899aa, hp:218, atk:24, spd:6,  rare:1, el:'phys', skills:[S('まるまりタックル','phys',1.15), S('てっぺきころがり','earth',0.9)] },
+  // ━━━ 追加組 ★2 (16種) ━━━
+  { id:65, name:'フレイムコング',   shape:'cube',       color:0xcc5522, hp:225, atk:29, spd:9,  rare:2, el:'fire', skills:[S('バーニングナックル','fire',1.2), S('むねたたき','phys',1.1)] },
+  { id:66, name:'アクアセイレン',   shape:'torus',      color:0x77ccee, hp:195, atk:26, spd:12, rare:2, el:'ice', skills:[S('うたかたのこえ','ice',1.1,'one',{k:'slp',ch:0.3}), S('しおさいウェーブ','ice',0.85,'all')] },
+  { id:67, name:'ガラゴロン',       shape:'cube',       color:0x998877, hp:248, atk:27, spd:6,  rare:2, el:'earth', skills:[S('がんせきプレス','phys',1.2), S('じすべり','earth',0.85,'all')] },
+  { id:68, name:'シャドウパペット', shape:'cylinder',   color:0x554477, hp:200, atk:27, spd:11, rare:2, el:'dark', skills:[S('かげあやつり','dark',1.15), S('いとからめ','phys',1.05,'one',{k:'par',ch:0.25})] },
+  { id:69, name:'ボルテックル',     shape:'octahedron', color:0xeedd55, hp:190, atk:28, spd:13, rare:2, el:'thunder', skills:[S('ほうでんツノ','thunder',1.2,'one',{k:'par',ch:0.25}), S('ツノドリル','phys',1.1)] },
+  { id:70, name:'リーフシーカー',   shape:'cone',       color:0x55aa55, hp:205, atk:26, spd:10, rare:2, el:'earth', skills:[S('このはぎり','slash',1.15), S('いやしのこかげ','heal',1.25,'allies')] },
+  { id:71, name:'バーンウルフ',     shape:'cylinder',   color:0xdd6633, hp:208, atk:28, spd:13, rare:2, el:'fire', skills:[S('ねっけつファング','fire',1.2), S('とおぼえ','phys',1.0)] },
+  { id:72, name:'フロストレディ',   shape:'torus',      color:0xbbe8ff, hp:192, atk:27, spd:13, rare:2, el:'ice', skills:[S('こおりのワルツ','ice',1.15), S('ふぶきのベール','ice',0.85,'all')] },
+  { id:73, name:'サンドシューター', shape:'cube',       color:0xddcc88, hp:215, atk:28, spd:9,  rare:2, el:'earth', skills:[S('さばくのつぶて','earth',1.15), S('すなめくらまし','phys',1.05)] },
+  { id:74, name:'ゴーストキャプテン', shape:'sphere',   color:0xaabbdd, hp:198, atk:28, spd:12, rare:2, el:'dark', skills:[S('ゆうれいぎり','slash',1.2), S('うらみのいちげき','dark',1.15)] },
+  { id:75, name:'エレキマンタ',     shape:'octahedron', color:0x66ddee, hp:196, atk:27, spd:13, rare:2, el:'thunder', skills:[S('でんじはばたき','thunder',1.15), S('なみのりプレス','phys',1.1)] },
+  { id:76, name:'ヒカリゴケ',       shape:'sphere',     color:0xddffcc, hp:188, atk:25, spd:11, rare:2, el:'holy', skills:[S('ひかりごけのいき','holy',1.1), S('こけのいやし','heal',1.3,'allies')] },
+  { id:77, name:'マグマイモムシ',   shape:'cylinder',   color:0xee7744, hp:230, atk:28, spd:7,  rare:2, el:'fire', skills:[S('ようがんばくしん','fire',1.2), S('あつあつボディ','phys',1.05)] },
+  { id:78, name:'カミナリコゾウ',   shape:'sphere',     color:0xffe680, hp:185, atk:27, spd:14, rare:2, el:'thunder', skills:[S('いたずらでんげき','thunder',1.15,'one',{k:'par',ch:0.3}), S('にげあしげり','phys',1.0)] },
+  { id:79, name:'シェルマスター',   shape:'cube',       color:0x88aabb, hp:240, atk:26, spd:7,  rare:2, el:'ice', skills:[S('からごもりずつき','phys',1.1), S('れいきほうしゅつ','ice',0.9,'all')] },
+  { id:80, name:'ホーリーラム',     shape:'cylinder',   color:0xfff2cc, hp:202, atk:27, spd:11, rare:2, el:'holy', skills:[S('せいなるつのづき','holy',1.2), S('めぐみのひかり','heal',1.3,'allies')] },
+  // ━━━ 追加組 ★3 (12種) ━━━
+  { id:81, name:'ブレイズセンチュリオ', shape:'cylinder', color:0xdd4422, hp:240, atk:33, spd:12, rare:3, el:'fire', skills:[S('ひゃくれつフレイム','fire',1.25), S('しゃくねつぎり','slash',1.2)] },
+  { id:82, name:'アイスファラオ',   shape:'cone',       color:0x99ddee, hp:250, atk:32, spd:10, rare:3, el:'ice', skills:[S('れいこくのさばき','ice',1.25), S('こおりのじゅばく','ice',1.1,'one',{k:'par',ch:0.3})] },
+  { id:83, name:'ライデンキング',   shape:'octahedron', color:0xffe14d, hp:235, atk:33, spd:13, rare:3, el:'thunder', skills:[S('らいていのいかり','thunder',1.25,'one',{k:'par',ch:0.3}), S('ばんらいのとどろき','thunder',0.9,'all')] },
+  { id:84, name:'ガイアナイト',     shape:'cube',       color:0xaa8855, hp:285, atk:32, spd:7,  rare:3, el:'earth', skills:[S('だいちのつるぎ','slash',1.25), S('こんごうがんさい','earth',0.95,'all')] },
+  { id:85, name:'ファントムロード', shape:'cylinder',   color:0x664499, hp:245, atk:33, spd:11, rare:3, el:'dark', skills:[S('めいかいのやいば','slash',1.25), S('たましいすい','dark',1.2)] },
+  { id:86, name:'セイクリッドハート', shape:'torus',    color:0xffddee, hp:225, atk:31, spd:12, rare:3, el:'holy', skills:[S('せいじゃのひとみ','holy',1.2), S('てんしのいやし','heal',1.5,'allies')] },
+  { id:87, name:'シノビカゲロウ',   shape:'cylinder',   color:0x556666, hp:215, atk:33, spd:15, rare:3, el:'slash', skills:[S('むそうぎり','slash',1.3), S('かげぬい','slash',1.1,'one',{k:'par',ch:0.25})] },
+  { id:88, name:'クリスタルビースト', shape:'octahedron', color:0x99ffee, hp:240, atk:32, spd:12, rare:3, el:'ice', skills:[S('すいしょうのキバ','ice',1.25), S('プリズムタックル','phys',1.05)] },
+  { id:89, name:'ヴォルケニックタートル', shape:'cube', color:0xbb6644, hp:300, atk:33, spd:6,  rare:3, el:'fire', skills:[S('かざんこうプレス','phys',1.3), S('ふんかだん','fire',0.9,'all')] },
+  { id:90, name:'テンペストルーク', shape:'cone',       color:0x88ccdd, hp:255, atk:32, spd:11, rare:3, el:'thunder', skills:[S('あらしのほうかく','thunder',1.25), S('ぼうふうぎり','slash',0.9,'all')] },
+  { id:91, name:'ナイトメアテイマー', shape:'cylinder', color:0x7755aa, hp:235, atk:33, spd:12, rare:3, el:'dark', skills:[S('あくむのムチ','dark',1.25,'one',{k:'slp',ch:0.3}), S('しもべけしかけ','phys',1.15)] },
+  { id:92, name:'オーロラセイバー', shape:'cylinder',   color:0xaaeeff, hp:230, atk:32, spd:14, rare:3, el:'holy', skills:[S('オーロラぎり','slash',1.25), S('きよめのひかり','heal',1.4,'allies')] },
+  // ━━━ 追加組 ★4 (6種) ━━━
+  { id:93, name:'インフェルノデューク', shape:'cone',   color:0xbb2211, hp:285, atk:37, spd:12, rare:4, el:'fire', skills:[S('じごくのごうか','fire',1.05,'all'), S('デュークネイル','slash',1.35)] },
+  { id:94, name:'グレイシャルエンプレス', shape:'torus', color:0xcceeff, hp:265, atk:35, spd:13, rare:4, el:'ice', skills:[S('えいえんのふゆ','ice',1.0,'all'), S('アイスエンバーマ','ice',1.4,'one',{k:'par',ch:0.25})] },
+  { id:95, name:'トールハンマード', shape:'octahedron', color:0xffd700, hp:255, atk:37, spd:15, rare:4, el:'thunder', skills:[S('しんらいのつち','thunder',1.4,'one',{k:'par',ch:0.3}), S('らいうんしょうかん','thunder',1.0,'all')] },
+  { id:96, name:'アースガルド',     shape:'cube',       color:0x997755, hp:310, atk:37, spd:9,  rare:4, el:'earth', skills:[S('せかいじゅのいかり','earth',1.05,'all'), S('ガルドプレス','phys',1.4)] },
+  { id:97, name:'セラフィムガード', shape:'cylinder',   color:0xfff0bb, hp:270, atk:34, spd:12, rare:4, el:'holy', skills:[S('てんばつのいかずち','holy',1.4), S('だいてんしのまもり','heal',1.7,'allies')] },
+  { id:98, name:'カオスドラグーン', shape:'cone',       color:0x553388, hp:290, atk:36, spd:11, rare:4, el:'dark', skills:[S('こんとんブレス','dark',1.05,'all'), S('りゅうきしのやり','slash',1.35)] },
+  // ━━━ 追加組 ★5 (2種) ━━━
+  { id:99, name:'オリジンフレア',   shape:'cone',       color:0xff2266, hp:325, atk:41, spd:13, rare:5, el:'fire', skills:[S('げんしのほのお','fire',1.15,'all'), S('オリジンクロー','slash',1.45)] },
+  { id:100, name:'エターナルルクス', shape:'torus',     color:0xfff8aa, hp:310, atk:39, spd:14, rare:5, el:'holy', skills:[S('えいえんのひかり','holy',1.15,'all'), S('ルクスリザレクト','heal',2.0,'allies')] },
 ];
 const cardById = id => CARD_POOL.find(c=>c.id===id) || CARD_POOL[0];
 
@@ -427,7 +493,7 @@ function instCard(id, lv){
   lv = Math.max(1, Math.min(MAX_LV, lv|0 || 1));
   return {
     ...c, lv,
-    hp:  Math.round(c.hp * 1.3 * (1 + 0.07*(lv-1))),
+    hp:  Math.round(c.hp * 2.6 * (1 + 0.07*(lv-1))),
     atk: Math.round(c.atk * (1 + 0.05*(lv-1))),
     spd: c.spd + Math.floor((lv-1)/3),
     trait: CARD_TRAITS[c.id] || null,
@@ -445,6 +511,12 @@ const TRAITS = {
   rage:  { name:'とうこん',       desc:'HP30%以下でこうげき+25%' },
   soul:  { name:'ソウルチャージ', desc:'被ダメージ時のゲージ上昇1.5倍' },
   guts:  { name:'くいしばり',     desc:'1バトルに1回、HP1でたえる' },
+  crit:  { name:'かいしん',       desc:'15%でダメージ1.5倍' },
+  thorn: { name:'トゲのよろい',   desc:'うけたダメージの12%をはねかえす' },
+  leech: { name:'きゅうけつ',     desc:'あたえたダメージの25%じぶんが回復' },
+  first: { name:'せんせいのかまえ', desc:'1ターン目だけ速度1.6倍' },
+  aura:  { name:'まもりのオーラ', desc:'味方全体の被ダメージ5%カット' },
+  tension:{ name:'ハイテンション', desc:'こうげき時のゲージ上昇2倍' },
 };
 const CARD_TRAITS = {
   1:'guts', 2:'hard', 3:'mirage', 4:'regen', 5:'power', 6:'soul', 7:'hard',
@@ -454,20 +526,33 @@ const CARD_TRAITS = {
   29:'regen', 30:'hard', 31:'sniper', 32:'soul', 33:'power', 34:'rage', 35:'swift',
   36:'sniper', 37:'hard', 38:'regen', 39:'regen', 40:'sniper', 41:'hard', 42:'regen',
   43:'mirage', 44:'rage', 45:'swift', 46:'guts', 47:'regen', 48:'soul', 49:'rage', 50:'regen',
+  51:'tension', 52:'first', 53:'aura', 54:'regen', 55:'soul', 56:'hard', 57:'swift',
+  58:'thorn', 59:'crit', 60:'mirage', 61:'leech', 62:'thorn', 63:'sniper', 64:'guts',
+  65:'power', 66:'aura', 67:'hard', 68:'mirage', 69:'tension', 70:'regen', 71:'first',
+  72:'swift', 73:'sniper', 74:'crit', 75:'leech', 76:'aura', 77:'thorn', 78:'swift',
+  79:'guts', 80:'soul', 81:'power', 82:'sniper', 83:'tension', 84:'aura', 85:'leech',
+  86:'regen', 87:'first', 88:'crit', 89:'thorn', 90:'hard', 91:'mirage', 92:'swift',
+  93:'crit', 94:'aura', 95:'power', 96:'thorn', 97:'guts', 98:'tension', 99:'rage', 100:'regen',
 };
 
 /* ---------------- 三体合体 (とくていの3体で出撃すると巨大モンスターに！) ---------------- */
 const TRIO_FUSIONS = [
-  { ids:[15,21,34], name:'イグナロス',   shape:'cone',       color:0xff3300, el:'fire',    hp:1500, atk:56, spd:12, trait:'rage',
+  { ids:[15,21,34], name:'イグナロス',   shape:'cone',       color:0xff3300, el:'fire',    hp:3000, atk:56, spd:12, trait:'rage',
     skills:[S('メガロフレイム','fire',1.0,'all'), S('ギガクロー','slash',1.5)] },
-  { ids:[7,22,37],  name:'グラキエロス', shape:'cube',       color:0x88ddff, el:'ice',     hp:1700, atk:50, spd:9,  trait:'hard',
+  { ids:[7,22,37],  name:'グラキエロス', shape:'cube',       color:0x88ddff, el:'ice',     hp:3400, atk:50, spd:9,  trait:'hard',
     skills:[S('アイスエイジ','ice',1.0,'all'), S('グレイシャプレス','phys',1.5)] },
-  { ids:[23,26,45], name:'トニトルス',   shape:'octahedron', color:0xffe14d, el:'thunder', hp:1350, atk:58, spd:15, trait:'sniper',
+  { ids:[23,26,45], name:'トニトルス',   shape:'octahedron', color:0xffe14d, el:'thunder', hp:2700, atk:58, spd:15, trait:'sniper',
     skills:[S('ライトニングノヴァ','thunder',1.0,'all'), S('ボルトインパクト','thunder',1.5,'one',{k:'par',ch:0.3})] },
-  { ids:[29,42,50], name:'ルクスセラフ', shape:'torus',      color:0xfff0aa, el:'holy',    hp:1450, atk:50, spd:12, trait:'regen',
-    skills:[S('セイントノヴァ','holy',0.95,'all'), S('グランドプレア','heal',5.0,'allies')] },
-  { ids:[19,32,46], name:'ノクスレギア', shape:'cylinder',   color:0x7733cc, el:'dark',    hp:1550, atk:54, spd:11, trait:'soul',
+  { ids:[29,42,50], name:'ルクスセラフ', shape:'torus',      color:0xfff0aa, el:'holy',    hp:2900, atk:50, spd:12, trait:'regen',
+    skills:[S('セイントノヴァ','holy',0.95,'all'), S('グランドプレア','heal',9.0,'allies')] },
+  { ids:[19,32,46], name:'ノクスレギア', shape:'cylinder',   color:0x7733cc, el:'dark',    hp:3100, atk:54, spd:11, trait:'soul',
     skills:[S('カオスゲート','dark',1.0,'all'), S('レギアスラッシュ','slash',1.5)] },
+  { ids:[65,77,89], name:'ヴァルカノドン', shape:'cube',     color:0xdd4411, el:'fire',    hp:3300, atk:54, spd:10, trait:'thorn',
+    skills:[S('マグマカタストロフ','fire',1.0,'all'), S('ドンプレス','phys',1.5)] },
+  { ids:[57,74,87], name:'シノビショウグン', shape:'cylinder', color:0x445566, el:'slash', hp:2800, atk:58, spd:15, trait:'first',
+    skills:[S('ぜんりょくむそうぎり','slash',1.5), S('かげぶんしんのまい','slash',1.0,'all')] },
+  { ids:[68,85,91], name:'ルナティックノヴァ', shape:'octahedron', color:0x8844cc, el:'dark', hp:3000, atk:56, spd:11, trait:'leech',
+    skills:[S('ナイトメアノヴァ','dark',1.0,'all'), S('ソウルイーター','dark',1.5,'one',{k:'psn',ch:0.3})] },
 ];
 function findTrio(ids){
   if(!Array.isArray(ids) || ids.length!==3) return null;
@@ -563,6 +648,7 @@ const state = {
   raidUsed: { A:false, B:false },
   mods: { A:[], B:[] },     // {stat:'atk'|'spd'|'def', mult, turns}
   pendingSp: null, pendingRaid: null,
+  lastParty: [],
   phase: 'select',
   ended: false,
   bossBattle: false,
@@ -575,6 +661,7 @@ const pvp = {
   myMoves:null, oppMoves:{},
   started:false, connected:false, closedHandled:false, cancelled:false, lostConn:false,
   oppRaidHands:{},
+  rule:'flat',
 };
 
 /* ---------------- セーブ / ロード ---------------- */
@@ -591,6 +678,10 @@ const EVOLVES = {
   9:{to:16,lv:4}, 16:{to:36,lv:6}, 36:{to:45,lv:8}, 15:{to:44,lv:7}, 44:{to:49,lv:9},
   12:{to:17,lv:4}, 17:{to:48,lv:7}, 8:{to:38,lv:6}, 18:{to:47,lv:7}, 20:{to:23,lv:4},
   11:{to:37,lv:5}, 14:{to:34,lv:6}, 6:{to:21,lv:4},
+  51:{to:67,lv:4}, 67:{to:96,lv:7}, 52:{to:69,lv:4}, 69:{to:83,lv:6}, 83:{to:95,lv:8},
+  59:{to:71,lv:4}, 71:{to:81,lv:7}, 81:{to:93,lv:9}, 60:{to:68,lv:4}, 68:{to:85,lv:7},
+  54:{to:66,lv:5}, 66:{to:82,lv:7}, 63:{to:76,lv:4}, 76:{to:86,lv:6}, 86:{to:97,lv:8},
+  57:{to:87,lv:6}, 64:{to:79,lv:4}, 75:{to:90,lv:6},
 };
 function canEvolve(id){
   const ev = EVOLVES[id];
@@ -613,6 +704,7 @@ function saveGame(){
     localStorage.setItem(SAVE_KEY_OF(), JSON.stringify({
       v:3, owned:state.owned, stage:state.stage, stageBattle:state.stageBattle,
       streak:state.streak, allClear:state.allClear, dex:[...state.dex], lvr:true,
+      lastParty:state.lastParty,
     }));
   }catch(e){}
 }
@@ -629,10 +721,11 @@ function loadGame(){
         if(CARD_POOL.some(c=>c.id===id)) state.owned[id] = lv;
       }
       if(!d.lvr){ for(const k of Object.keys(state.owned)) state.owned[k] = 1; } // 全カードLvリセット(初回のみ)
-      state.stage = Math.max(1, Math.min(STAGE_MAX, d.stage|0 || 1));
+      state.stage = Math.max(1, Math.min(9999, d.stage|0 || 1));
       state.stageBattle = Math.max(1, Math.min(STAGE_LEN, d.stageBattle|0 || 1));
       state.streak = Math.max(0, d.streak|0);
       state.allClear = !!d.allClear;
+      state.lastParty = Array.isArray(d.lastParty) ? d.lastParty.filter(id=>CARD_POOL.some(c=>c.id===id)).slice(0,3) : [];
     }
   }catch(e){}
   if(Object.keys(state.owned).length===0){
@@ -666,11 +759,11 @@ function switchProfile(id){
 // ふっかつのじゅもん v3: [3, stage, stageBattle, streakL, streakH, (id,lv)..., 0, dex7byte, ck]
 const SPELL_KANA = 'あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみ';
 function makeSpell(){
-  const bytes = [3, state.stage, state.stageBattle, state.streak & 255, (state.streak>>8) & 255];
+  const bytes = [4, Math.min(255, state.stage), state.stageBattle, state.streak & 255, (state.streak>>8) & 255];
   for(const k of Object.keys(state.owned)) bytes.push(+k, state.owned[k]);
   bytes.push(0);
-  const mask = [0,0,0,0,0,0,0];
-  for(const id of state.dex){ if(id>=1 && id<=50) mask[(id-1)>>3] |= 1<<((id-1)&7); }
+  const mask = new Array(13).fill(0);
+  for(const id of state.dex){ if(id>=1 && id<=100) mask[(id-1)>>3] |= 1<<((id-1)&7); }
   bytes.push(...mask);
   bytes.push(bytes.reduce((a,b)=>a+b,0) & 255);
   let out='', acc=0, nb=0;
@@ -690,7 +783,8 @@ function readSpell(sp){
     acc=(acc<<5)|v; nb+=5;
     if(nb>=8){ nb-=8; bytes.push((acc>>nb)&255); }
   }
-  if(bytes.length<14 || bytes[0]!==3) return false;
+  if(bytes.length<14 || (bytes[0]!==3 && bytes[0]!==4)) return false;
+  const ver = bytes[0];
   const ck = bytes.pop();
   if((bytes.reduce((a,b)=>a+b,0)&255)!==ck) return false;
   const stage = bytes[1], stageBattle = bytes[2], streak = bytes[3] | (bytes[4]<<8);
@@ -698,17 +792,19 @@ function readSpell(sp){
   while(i<bytes.length && bytes[i]!==0){
     if(i+1>=bytes.length) return false;
     const id=bytes[i], lv=bytes[i+1]; i+=2;
-    if(id<1||id>50||lv<1||lv>MAX_LV) return false;
+    if(id<1||id>100||lv<1||lv>MAX_LV) return false;
     owned[id] = lv;
   }
-  if(bytes[i]!==0 || i+8 > bytes.length || Object.keys(owned).length===0) return false;
+  const maskLen = (ver===3) ? 7 : 13;
+  if(bytes[i]!==0 || i+1+maskLen > bytes.length || Object.keys(owned).length===0) return false;
   i++;
   const dex = new Set();
-  for(let id=1;id<=50;id++){ if(bytes[i+((id-1)>>3)] & (1<<((id-1)&7))) dex.add(id); }
+  const maxId = (ver===3) ? 50 : 100;
+  for(let id=1;id<=maxId;id++){ if(bytes[i+((id-1)>>3)] & (1<<((id-1)&7))) dex.add(id); }
   state.owned = owned;
   for(const k of Object.keys(owned)) dex.add(+k);
   state.dex = dex;
-  state.stage = Math.max(1, Math.min(STAGE_MAX, stage));
+  state.stage = Math.max(1, Math.min(9999, stage));
   state.stageBattle = Math.max(1, Math.min(STAGE_LEN, stageBattle));
   state.streak = Math.max(0, Math.min(9999, streak));
   saveGame();
@@ -787,7 +883,11 @@ function effAtk(u){
   if(traitOf(u)==='rage' && u.hp <= u.maxHp*0.3) m *= 1.25;
   return Math.max(1, Math.round(u.atk * m));
 }
-function effSpd(u){ return u.spd * modMult(u.side,'spd') * (traitOf(u)==='swift' ? 1.15 : 1); }
+function effSpd(u){
+  let m = (traitOf(u)==='swift' ? 1.15 : 1);
+  if(traitOf(u)==='first' && state.turn===1) m *= 1.6;
+  return u.spd * modMult(u.side,'spd') * m;
+}
 
 /* ---------------- サウンド ---------------- */
 let actx = null;
@@ -973,7 +1073,7 @@ function createUnit(data, side, idx, opts){
   return {
     data, side, isAlly, idx, group, body, home, baseRotY, scl,
     hp:data.hp, maxHp:data.hp, atk:data.atk, spd:data.spd,
-    st:null, stT:0, gutsUsed:false,
+    st:null, stT:0, gutsUsed:false, guarding:false,
     alive:true, busy:false, boss:!!opts.boss, bobOff:Math.random()*6, label
   };
 }
@@ -1119,6 +1219,11 @@ function renderSelect(){
     tile.addEventListener('click', ()=>togglePick(id));
     grid.appendChild(tile);
   }
+  // 前回つかったパーティを自動セット
+  for(const id of state.lastParty){
+    if(state.owned[id] && !state.picked.includes(id) && state.picked.length<3) state.picked.push(id);
+  }
+  refreshPickBadges();
   updateModeBtns();
   matchStatus('');
   showScreen('select');
@@ -1131,6 +1236,10 @@ function togglePick(id){
     state.picked.push(id);
   }
   sndSelect();
+  refreshPickBadges();
+  updateModeBtns();
+}
+function refreshPickBadges(){
   document.querySelectorAll('.card-tile').forEach(t=>{
     const cid = +t.dataset.cid;
     const pi = state.picked.indexOf(cid);
@@ -1143,7 +1252,6 @@ function togglePick(id){
       t.appendChild(b);
     }
   });
-  updateModeBtns();
 }
 function updateModeBtns(){
   const ok = state.picked.length===3;
@@ -1233,10 +1341,11 @@ function startMatching(){
   if(state.picked.length!==3){ matchStatus('先にカードを3枚えらんでね'); return; }
   if(typeof Peer === 'undefined'){ matchStatus('通信ライブラリを読み込めなかった…ネット接続を確認してね'); return; }
   cleanupPvp();
+  pvp.rule = pvpRule;
   pvp.oppRaidHands = {};
   pvp.pickedIds = [...state.picked];
   matchStatus('せつぞく中…');
-  const hostId = 'abr3dv4-' + hashWord(word);
+  const hostId = 'abr3dv5' + (pvpRule==='lv' ? 'l' : 'f') + '-' + hashWord(word);
   const p = new Peer(hostId);
   pvp.peer = p;
   p.on('open', ()=>{
@@ -1285,8 +1394,8 @@ function bindConn(conn){
     if(pvp.cancelled){ try{conn.close();}catch(e){} return; }
     pvp.connected = true;
     matchStatus('マッチ成立！ バトル準備中…');
-    const party = pvp.pickedIds.map(id => ({ id, lv: 1 })); // PvPはLv1統一
-    conn.send({ t:'hello', v:4, party });
+    const party = pvp.pickedIds.map(id => ({ id, lv: (pvp.rule==='lv' ? (state.owned[id]||1) : 1) }));
+    conn.send({ t:'hello', v:5, rule:pvp.rule, party });
   });
   conn.on('data', handleMsg);
   conn.on('close', onPvpClosed);
@@ -1295,7 +1404,7 @@ function bindConn(conn){
 function handleMsg(m){
   if(!m || typeof m!=='object') return;
   if(m.t==='hello'){
-    if(m.v!==4){ matchStatus('相手のゲームのバージョンが違うみたい…同じURLの最新版を使ってね'); return; }
+    if(m.v!==5 || m.rule!==pvp.rule){ matchStatus('相手のバージョンかルールが違うみたい…同じURLの最新版＆同じルールでためしてね'); return; }
     if(Array.isArray(m.party) && m.party.length===3){
       pvp.oppParty = m.party.map(e=>({ id:cardById(e&&e.id).id, lv:Math.max(1,Math.min(MAX_LV,(e&&e.lv)|0||1)) }));
       if(pvp.isHost){
@@ -1314,6 +1423,8 @@ function handleMsg(m){
     if(Number.isInteger(m.turn) && Number.isInteger(m.hand) && m.hand>=0 && m.hand<=2){
       pvp.oppRaidHands[m.turn] = m.hand;
     }
+  } else if(m.t==='emo'){
+    if(Number.isInteger(m.i) && EMOTES[m.i]) showEmote(EMOTES[m.i], true);
   }
 }
 function tryStartPvp(){
@@ -1344,7 +1455,8 @@ function partyLvAvg(){
   return ids.reduce((a,id)=>a+(state.owned[id]||1),0) / ids.length;
 }
 function diffFactors(){
-  const base = [1.25, 1.75, 2.3, 2.75, 3.15][state.stage-1];
+  const st = state.stage;
+  const base = (st<=5) ? [1.25, 1.75, 2.3, 2.75, 3.15][st-1] : 3.15 + (st-5)*0.45;
   const lvF = 1 + (partyLvAvg()-1)*0.085;  // プレイヤーのLvが高いほど敵も強くなる
   const hpF = base * lvF * (1 + (state.stageBattle-1)*0.012) * (1 + Math.min(state.streak,40)*0.004);
   const atkF = 1 + (hpF-1)*0.50;
@@ -1366,11 +1478,12 @@ function startBattle(mode){
   state.bossBattle = false;
 
   const pickedIds = (mode==='pvp') ? pvp.pickedIds : state.picked;
-  const lvOf = id => (mode==='pvp') ? 1 : (state.owned[id]||1); // PvPはLv1統一
+  const lvOf = id => (mode==='pvp' && pvp.rule!=='lv') ? 1 : (state.owned[id]||1); // PvP:ルールに応じてLv反映
+  state.lastParty = [...pickedIds]; saveGame(); // 前回パーティを記憶
   const myTrio = findTrio(pickedIds);
   let trioBanner = null;
   if(myTrio){
-    const lv = (mode==='pvp') ? 1 : Math.max(...pickedIds.map(lvOf));
+    const lv = Math.max(...pickedIds.map(lvOf));
     state.units[state.mySide] = [ createUnit(instTrio(myTrio, lv), state.mySide, 1, { scale:1.6 }) ];
     trioBanner = myTrio.name;
   } else {
@@ -1383,25 +1496,28 @@ function startBattle(mode){
     const oppIds = pvp.oppParty.map(e=>e.id);
     const oppTrio = findTrio(oppIds);
     if(oppTrio){
-      state.units[oppS] = [ createUnit(instTrio(oppTrio, 1), oppS, 1, { scale:1.6 }) ];
+      const oppLv = (pvp.rule==='lv') ? Math.max(...pvp.oppParty.map(e=>e.lv)) : 1;
+      state.units[oppS] = [ createUnit(instTrio(oppTrio, oppLv), oppS, 1, { scale:1.6 }) ];
     } else {
-      state.units[oppS] = oppIds.map((id,i)=>createUnit(instCard(id, 1), oppS, i));
+      state.units[oppS] = pvp.oppParty.map((e,i)=>createUnit(instCard(e.id, (pvp.rule==='lv') ? e.lv : 1), oppS, i));
     }
   } else {
     const { hpF, atkF } = diffFactors();
     state.bossBattle = (state.stageBattle % 10 === 0);
     if(state.bossBattle){
       const bs = state.stageBattle===10 ? 0.7 : state.stageBattle===20 ? 0.85 : 0.95;
-      const bossBase = STAGE_BOSSES[state.stage-1];
+      const loop = Math.floor((state.stage-1)/5);
+      const bossBase0 = STAGE_BOSSES[(state.stage-1)%5];
+      const bossBase = { ...bossBase0, hp:Math.round(bossBase0.hp*(1+0.6*loop)), atk:Math.round(bossBase0.atk*(1+0.3*loop)) };
       const boss = {
         ...bossBase,
-        hp:  Math.round(bossBase.hp * bs * hpF),
+        hp:  Math.round(bossBase.hp * bs * hpF * 2),
         atk: Math.round(bossBase.atk * (0.8+0.2*bs) * atkF),
       };
       const mIdx = [Math.floor(Math.random()*ENEMY_POOL.length), Math.floor(Math.random()*ENEMY_POOL.length)];
       const minions = mIdx.map(j=>{
         const e = ENEMY_POOL[j];
-        return { ...e, hp:Math.round(e.hp*0.85*hpF), atk:Math.round(e.atk*0.85*atkF) };
+        return { ...e, hp:Math.round(e.hp*0.85*hpF*2), atk:Math.round(e.atk*0.85*atkF) };
       });
       state.units.B = [
         createUnit(minions[0], 'B', 0),
@@ -1412,7 +1528,7 @@ function startBattle(mode){
       const picks = [];
       while(picks.length<3) picks.push(ENEMY_POOL[Math.floor(Math.random()*ENEMY_POOL.length)]);
       state.units.B = picks.map((e,i)=>{
-        const d = { ...e, hp:Math.round(e.hp*hpF), atk:Math.round(e.atk*atkF) };
+        const d = { ...e, hp:Math.round(e.hp*hpF*2), atk:Math.round(e.atk*atkF) };
         return createUnit(d, 'B', i);
       });
     }
@@ -1426,10 +1542,11 @@ function startBattle(mode){
   state.pendingSp = null; state.pendingRaid = null;
   state.ended = false;
   pvp.myMoves = null;
+  $('#emote-row').classList.toggle('hidden', mode!=='pvp');
   showScreen('battle');
   showBanner(
     mode==='pvp' ? '⚔ 合言葉マッチ成立！ バトルスタート！ ⚔'
-    : state.bossBattle ? `👑 ボスバトル！！ ${STAGE_BOSSES[state.stage-1].name}出現！ 👑`
+    : state.bossBattle ? `👑 ボスバトル！！ ${STAGE_BOSSES[(state.stage-1)%5].name}出現！ 👑`
     : `ステージ${state.stage} 第${state.stageBattle}戦  スタート！`, 1500);
   if(trioBanner){
     const tu = myUnits()[0];
@@ -1446,7 +1563,7 @@ function startSelection(){
   state.phase = 'select';
   state.mySel = [null,null,null];
   state.pendingSp = null; state.pendingRaid = null;
-  $('#tb-wave').textContent = state.mode==='pvp' ? '⚔ 通信対戦' : `S${state.stage} ${state.stageBattle}/${STAGE_LEN}${state.bossBattle?' 👑':''}`;
+  $('#tb-wave').textContent = state.mode==='pvp' ? ('⚔ 通信対戦' + (pvp.rule==='lv'?'［育成Lv］':'［Lv1］')) : `S${state.stage} ${state.stageBattle}/${STAGE_LEN}${state.bossBattle?' 👑':''}`;
   $('#tb-turn').textContent = `TURN ${state.turn}`;
   updateOppGaugeUI();
   const row = $('#cmd-row');
@@ -1474,6 +1591,22 @@ function startSelection(){
       });
       card.appendChild(btn);
     });
+    {
+      const gb = document.createElement('button');
+      gb.className = 'skill-btn guard-btn';
+      gb.disabled = !u.alive;
+      gb.innerHTML = '🛡 ガード<br><span class="se">[被ダメ半減・ゲージ+15]</span>';
+      gb.addEventListener('click', ()=>{
+        if(state.phase!=='select') return;
+        state.mySel[i] = 2;
+        sndSelect();
+        card.querySelectorAll('.skill-btn').forEach(b=>b.classList.remove('sel'));
+        gb.classList.add('sel');
+        updateFusionPreview();
+        updateGoBtn();
+      });
+      card.appendChild(gb);
+    }
     row.appendChild(card);
   });
   updateFusionPreview();
@@ -1611,7 +1744,7 @@ function confirmMoves(ult){
 }
 function sanitizeSel(sel){
   const out = [null,null,null];
-  if(Array.isArray(sel)) for(let i=0;i<3;i++) if(sel[i]===0||sel[i]===1) out[i]=sel[i];
+  if(Array.isArray(sel)) for(let i=0;i<3;i++) if(sel[i]===0||sel[i]===1||sel[i]===2) out[i]=sel[i];
   return out;
 }
 function sanMoves(m){
@@ -1644,6 +1777,8 @@ function updateStatusUI(u){
 async function applyDamage(target, dmg, attacker, popCls, eff, st){
   let real = Math.max(1, Math.round(dmg * modMult(target.side,'def')));
   if(traitOf(target)==='hard') real = Math.max(1, Math.round(real*0.9));
+  if(aliveOf(target.side).some(x=>traitOf(x)==='aura')) real = Math.max(1, Math.round(real*0.95));
+  if(target.guarding) real = Math.max(1, Math.round(real*0.5));
   target.hp = Math.max(0, target.hp - real);
   if(target.hp<=0 && traitOf(target)==='guts' && !target.gutsUsed){
     target.gutsUsed = true; target.hp = 1;
@@ -1654,8 +1789,19 @@ async function applyDamage(target, dmg, attacker, popCls, eff, st){
   else if(eff && eff < 1) showPopup(target.group.position.clone().add(new THREE.Vector3(0,1.7*target.scl,0)), 'いまひとつ…', 'eff-dn');
   flashBody(target);
   updateHpUI(target);
-  addGaugeFor(target.side, traitOf(target)==='soul' ? 18 : 12);
-  if(attacker) addGaugeFor(attacker.side, 6);
+  addGaugeFor(target.side, traitOf(target)==='soul' ? 14 : 9);
+  if(attacker) addGaugeFor(attacker.side, traitOf(attacker)==='tension' ? 10 : 5);
+  if(attacker && attacker.alive && traitOf(target)==='thorn'){
+    const ref = Math.max(1, Math.round(real*0.12));
+    attacker.hp = Math.max(0, attacker.hp - ref);
+    showPopup(attacker.group.position.clone().add(new THREE.Vector3(0,0.9*attacker.scl,0)), ref, attacker.isAlly?'dmg-ally':'dmg-enemy');
+    flashBody(attacker, 0x88ff66, 200);
+    updateHpUI(attacker);
+    if(attacker.hp<=0 && attacker.alive) await killUnit(attacker);
+  }
+  if(attacker && attacker.alive && traitOf(attacker)==='leech'){
+    applyHeal(attacker, Math.max(1, Math.round(real*0.25)));
+  }
   if(target.hp<=0 && target.alive){ await killUnit(target); return; }
   if(target.st==='slp' && real>0){
     target.st = null; target.stT = 0; updateStatusUI(target);
@@ -1687,6 +1833,7 @@ function updateHpUI(u){
 }
 async function killUnit(u){
   u.alive = false; u.busy = true;
+  addGaugeFor(u.side, 25); // リベンジゲージ
   snd(80,0.4,'sawtooth',0.12,-40);
   burst(u.group.position.clone(), u.data.color, u.boss?44:26, u.boss?4.5:3.5, u.boss?1.6:1.2);
   if(u.boss){ shake(0.6); flashScreen('#fff', 300, 0.5); }
@@ -1720,6 +1867,7 @@ async function meleeAttack(u, plans, skill){
     flashScreen('#fff', 110, 0.3);
     burst(p0.t.group.position.clone(), 0xffffff, 16, 3.2);
     burst(p0.t.group.position.clone(), parseInt(ELEMS[skill.elem].color.slice(1),16), 14, 2.6);
+    if(p0.crit) showPopup(p0.t.group.position.clone().add(new THREE.Vector3(0,1.6*p0.t.scl,0)), 'かいしんのいちげき！', 'eff-up');
     await applyDamage(p0.t, p0.dmg, u, null, p0.eff, p0.st);
   }
   await tween(260, k=>{ u.group.position.lerpVectors(to, from, easeOut(k)); });
@@ -1757,6 +1905,7 @@ async function rangedAttack(u, plans, skill){
       sndHit();
       shake(0.14);
       burst(to, col, 20, 3.0);
+      if(p.crit) showPopup(p.t.group.position.clone().add(new THREE.Vector3(0,1.6*p.t.scl,0)), 'かいしんのいちげき！', 'eff-up');
       await applyDamage(p.t, p.dmg, u, null, p.eff, p.st);
     }
   }));
@@ -1768,7 +1917,7 @@ async function healAction(u, skill){
   sndHeal();
   flashBody(u, 0x33ff66, 350);
   await tween(300, k=>{ u.group.position.y = u.home.y + Math.sin(k*Math.PI)*0.6; u.group.rotation.y += 0.2; });
-  const amt = Math.round(effAtk(u)*skill.mult);
+  const amt = Math.round(effAtk(u)*skill.mult*1.8);
   for(const a of aliveOf(u.side)){
     burst(a.group.position.clone().add(new THREE.Vector3(0,-0.3,0)), 0x6dffa0, 14, 1.4, 0.9, -2.5);
     applyHeal(a, amt);
@@ -1798,14 +1947,26 @@ async function performSkill(u, skill){
     const eff = effOf(skill.elem, t.data.el);
     const missCh = (traitOf(u)==='sniper') ? 0 : 0.10 + (traitOf(t)==='mirage' ? 0.10 : 0);
     const miss = rngFn() < missCh;
-    return { t, eff, miss, dmg:calcDmg(atk, skill.mult*eff),
+    const crit = (traitOf(u)==='crit') && rngFn() < 0.15;
+    let dmg = calcDmg(atk, skill.mult*eff);
+    if(crit) dmg = Math.round(dmg*1.5);
+    return { t, eff, miss, crit, dmg,
       st:(!miss && skill.st && rngFn() < skill.st.ch) ? skill.st.k : null };
   });
   if((skill.elem==='phys'||skill.elem==='slash') && skill.target!=='all') await meleeAttack(u, plans, skill);
   else await rangedAttack(u, plans, skill);
 }
+async function guardAction(u){
+  u.guarding = true;
+  showBanner(`${bannerName(u)}は みをまもっている！`, 700);
+  flashBody(u, 0x66aaff, 400);
+  burst(u.group.position.clone(), 0x66aaff, 12, 1.4, 0.9, -1.5);
+  addGaugeFor(u.side, 15);
+  await sleep(450);
+}
 async function aiAction(u){
   if(aliveOf(otherSide(u.side)).length===0) return;
+  if(grand(0,1) < 0.12){ await guardAction(u); return; }
   const skill = u.data.skills[gri(u.data.skills.length)];
   await performSkill(u, skill);
 }
@@ -2008,7 +2169,7 @@ async function fusionAttack(pair, recipe){
   if(recipe.blessing){
     flashScreen('#fff8d0', 400, 0.8);
     sndHeal();
-    const healAmt = Math.round(dmgBase*0.9);
+    const healAmt = Math.round(dmgBase*1.8);
     const dmgs = oppTargets.map(t=>calcDmg(dmgBase, recipe.mult * effOf(recipe.elems[0], t.data.el)));
     for(const a of aliveOf(side)){
       burst(a.group.position.clone(), 0xfff0aa, 22, 1.8, 1.1, -2.5);
@@ -2109,7 +2270,7 @@ async function tickStatuses(){
     for(const u of state.units[side]){
       if(!u.alive || !u.st) continue;
       if(u.st==='psn'){
-        const dpsn = Math.max(1, Math.round(u.maxHp * 0.10));
+        const dpsn = Math.max(1, Math.round(u.maxHp * 0.07));
         showBanner(`${bannerName(u)}は どくの ダメージ！`, 700);
         flashBody(u, 0xc06aff, 300);
         await applyDamage(u, dpsn, null);
@@ -2176,6 +2337,10 @@ async function runTurnWith(plans){
     }
     state.units[side].forEach((u,i)=>{
       if(!u.alive || p.sel[i]===null || fused.includes(u)) return;
+      if(p.sel[i]===2){
+        acts.push({ speed: 8500-(side==='A'?0:1), run:()=>guardAction(u), check:()=>u.alive });
+        return;
+      }
       const skill = u.data.skills[p.sel[i]];
       acts.push({ speed:effSpd(u)+grand(0,2), run:()=>performSkill(u, skill), check:()=>u.alive });
     });
@@ -2212,6 +2377,7 @@ async function runTurnWith(plans){
     await endBattle(true, '（あいてが切断したため勝利）');
     return;
   }
+  for(const u of allUnits()) u.guarding = false;
   decayMods();
   state.turn++;
   startSelection();
@@ -2371,15 +2537,14 @@ async function endBattle(win, note){
     if(win){
       state.streak++;
       if(state.stageBattle>=STAGE_LEN){
-        if(state.stage>=STAGE_MAX){
+        if(state.stage===STAGE_MAX && !state.allClear){
           state.allClear = true;
-          state.stageBattle = 1;
-          progMsg = `🏆 全ステージ制覇！！おめでとう！！ 🏆\n(ステージ${STAGE_MAX}を周回できます)`;
+          progMsg = `🏆 全5ステージ制覇！！おめでとう！！ 🏆\nだが冒険はまだつづく…ステージ${state.stage+1}へ！`;
         } else {
           progMsg = `🎉 ステージ${state.stage} クリア！ ステージ${state.stage+1}へ！`;
-          state.stage++;
-          state.stageBattle = 1;
         }
+        state.stage++;
+        state.stageBattle = 1;
       } else {
         state.stageBattle++;
         progMsg = wasBoss ? `👑 ボス撃破！ 次は第${state.stageBattle}戦！` : `次は第${state.stageBattle}戦！ (連勝${state.streak})`;
@@ -2472,6 +2637,30 @@ $('#spell-go').addEventListener('click', ()=>{
     $('#spell-status').textContent = 'じゅもんが ちがうようだ…（コピーミスがないか確認してね）';
   }
 });
+
+/* ---------------- PvPルール選択 / エモート ---------------- */
+let pvpRule = 'flat';
+function setRuleUI(){
+  $('#rule-flat').classList.toggle('rsel', pvpRule==='flat');
+  $('#rule-lv').classList.toggle('rsel', pvpRule==='lv');
+}
+$('#rule-flat').addEventListener('click', ()=>{ pvpRule='flat'; setRuleUI(); sndSelect(); });
+$('#rule-lv').addEventListener('click', ()=>{ pvpRule='lv'; setRuleUI(); sndSelect(); });
+setRuleUI();
+const EMOTES = ['👍','🔥','😱','🙏'];
+function showEmote(e, fromOpp){
+  const d = $('#emote-pop');
+  d.textContent = (fromOpp ? 'あいて ' : '') + e;
+  d.style.opacity = 1;
+  clearTimeout(d._t);
+  d._t = setTimeout(()=>{ d.style.opacity = 0; }, 1400);
+  snd(fromOpp ? 500 : 700, 0.08, 'square', 0.06);
+}
+document.querySelectorAll('.emo-btn').forEach((b,i)=>b.addEventListener('click', ()=>{
+  if(state.mode!=='pvp' || !pvp.conn) return;
+  try{ pvp.conn.send({ t:'emo', i }); }catch(e){}
+  showEmote(EMOTES[i], false);
+}));
 
 /* ---------------- BGM (チップチューン・ループ) ---------------- */
 const BGM_KEY = 'astral_bgm';
