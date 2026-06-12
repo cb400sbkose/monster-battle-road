@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>モンスターバトルロード3D</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/peerjs/1.5.5/peerjs.min.js"></script>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; touch-action:manipulation; }
+  html,body { height:100%; background:#06030f; font-family:'Hiragino Kaku Gothic ProN','Yu Gothic',sans-serif; color:#fff; overflow:hidden; }
+  #app { position:relative; margin:0 auto; max-width:430px; height:100dvh; background:#0d0822; overflow:hidden; box-shadow:0 0 40px #000; }
+  .screen { position:absolute; inset:0; display:flex; flex-direction:column; }
+  .hidden { display:none !important; }
+  #screen-select { background:radial-gradient(circle at 50% 0%, #2a1a55 0%, #0d0822 70%); padding:12px 12px 10px; }
+  .sel-title { text-align:center; font-size:21px; font-weight:900; letter-spacing:2px; color:#ffd95e; text-shadow:0 0 12px #ff8c00,0 2px 0 #5a3a00; margin-bottom:2px; }
+  .sel-sub { text-align:center; font-size:11px; color:#bba; margin-bottom:6px; }
+  #wave-info { text-align:center; font-size:12px; color:#8fe3ff; font-weight:700; margin-bottom:6px; }
+  #card-grid { flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:4px 2px 12px; align-content:start; }
+  .card-tile { position:relative; background:linear-gradient(160deg,#241a4a,#141031); border:2px solid #4a3f7a; border-radius:10px; padding:8px 6px 6px; text-align:center; cursor:pointer; transition:transform .1s; }
+  .card-tile:active { transform:scale(.95); }
+  .card-tile.picked { border-color:#ffd95e; box-shadow:0 0 12px #ffb52e88; background:linear-gradient(160deg,#3a2c12,#241a4a); }
+  .pick-badge { position:absolute; top:-7px; right:-5px; width:22px; height:22px; border-radius:50%; background:#ffd95e; color:#3a2800; font-size:13px; font-weight:900; line-height:22px; box-shadow:0 1px 4px #000; }
+  .glyph { width:34px; height:34px; margin:2px auto 6px; }
+  .g-sphere { border-radius:50%; }
+  .g-cube { border-radius:3px; }
+  .g-cone { clip-path:polygon(50% 0,100% 100%,0 100%); }
+  .g-cylinder { border-radius:10px; }
+  .g-torus { background:transparent !important; border:7px solid; border-radius:50%; }
+  .g-octahedron { transform:rotate(45deg) scale(.85); border-radius:3px; }
+  .t-name { font-size:11px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .t-rare { font-size:10px; color:#ffd95e; letter-spacing:1px; }
+  .t-stats { font-size:9px; color:#aab; margin-top:2px; line-height:1.5; }
+  #mode-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+  .big-btn { padding:13px 4px; border:none; border-radius:12px; font-size:15px; font-weight:900; letter-spacing:2px; cursor:pointer; }
+  #deploy-btn { color:#3a2400; background:linear-gradient(180deg,#ffe27a,#ffae2e); box-shadow:0 4px 0 #9c5e00,0 6px 14px #0009; }
+  #match-btn { color:#001a2e; background:linear-gradient(180deg,#aef4ff,#3ec8ff); box-shadow:0 4px 0 #1a6a9c,0 6px 14px #0009; }
+  .big-btn:disabled { filter:grayscale(1) brightness(.55); box-shadow:none; }
+  .big-btn:active:not(:disabled) { transform:translateY(3px); box-shadow:none; }
+  #match-panel { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; background:#161040; border:1px solid #3a2f6a; border-radius:10px; padding:8px; }
+  #word-input { flex:1; min-width:110px; padding:10px; border-radius:8px; border:1px solid #5a4f8a; background:#1c1440; color:#fff; font-size:14px; user-select:text; -webkit-user-select:text; }
+  #word-input::placeholder { color:#776fa8; }
+  .mini-btn { padding:8px 12px; border:none; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer; }
+  #match-start { color:#001a2e; background:linear-gradient(180deg,#aef4ff,#3ec8ff); }
+  #match-cancel { color:#fff; background:#4a3f7a; }
+  #match-status { width:100%; font-size:11px; color:#8fe3ff; min-height:14px; line-height:1.5; }
+  .howto { font-size:9.5px; color:#99a; text-align:center; line-height:1.6; margin-top:5px; }
+  #canvas-wrap { position:relative; flex:1; min-height:0; background:#120b2e; }
+  #c { display:block; width:100%; height:100%; }
+  #labels,#popups { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .unit-label { position:absolute; transform:translate(-50%,-100%); text-align:center; transition:opacity .3s; }
+  .ul-name { font-size:9px; font-weight:700; text-shadow:0 1px 2px #000,0 0 4px #000; white-space:nowrap; }
+  .ul-hpbg { width:54px; height:6px; background:#000a; border:1px solid #0008; border-radius:3px; margin:1px auto 0; overflow:hidden; }
+  .ul-hp { height:100%; background:linear-gradient(90deg,#3dff7e,#b6ff52); border-radius:2px; transition:width .25s; }
+  .ul-hp.low { background:linear-gradient(90deg,#ff9d2e,#ffd34e); }
+  .ul-hp.crit { background:linear-gradient(90deg,#ff3a3a,#ff7e5e); }
+  .popup { position:absolute; transform:translate(-50%,-50%); font-size:22px; font-weight:900; text-shadow:0 0 6px #000,0 2px 2px #000,2px 0 2px #000; animation:popfloat .9s ease-out forwards; white-space:nowrap; }
+  .popup.heal { color:#6dffa0; }
+  .popup.dmg-ally { color:#ff6a6a; }
+  .popup.dmg-enemy { color:#ffe96a; }
+  .popup.big { font-size:30px; color:#ff9a2e; }
+  @keyframes popfloat { 0%{opacity:0;transform:translate(-50%,-30%) scale(.5);} 15%{opacity:1;transform:translate(-50%,-60%) scale(1.25);} 30%{transform:translate(-50%,-70%) scale(1);} 100%{opacity:0;transform:translate(-50%,-150%) scale(1);} }
+  #flash { position:absolute; inset:0; pointer-events:none; opacity:0; background:#fff; }
+  #banner { position:absolute; top:34%; left:0; right:0; text-align:center; pointer-events:none; }
+  .banner-text { display:inline-block; font-size:19px; font-weight:900; letter-spacing:1px; color:#fff; text-shadow:0 0 10px #ffae2e,0 0 22px #ff6a00,0 2px 3px #000; animation:bannerpop .25s ease-out; padding:4px 14px; background:linear-gradient(90deg,transparent,#000b 20%,#000b 80%,transparent); border-radius:6px; }
+  .banner-text.fusion { font-size:22px; color:#ffe14d; text-shadow:0 0 14px #ff3df0,0 0 30px #ff3df0,0 2px 3px #000; }
+  .banner-text.ult { font-size:23px; color:#7df0ff; text-shadow:0 0 14px #2ea0ff,0 0 32px #2e5cff,0 2px 3px #000; }
+  .banner-text.wait { font-size:14px; color:#8fe3ff; text-shadow:0 0 8px #2ea0ff,0 2px 3px #000; }
+  @keyframes bannerpop { 0%{transform:scale(.3);opacity:0;} 70%{transform:scale(1.15);} 100%{transform:scale(1);opacity:1;} }
+  #topbar { position:absolute; top:6px; left:8px; right:8px; display:flex; justify-content:space-between; gap:6px; pointer-events:none; font-size:11px; font-weight:800; color:#cfe; text-shadow:0 1px 3px #000; }
+  #battle-ui { background:linear-gradient(180deg,#1a1238,#0d0822); border-top:2px solid #4a3f7a; padding:7px 8px 10px; }
+  #gauge-row { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .gauge-lbl { font-size:10px; font-weight:800; color:#8fe3ff; white-space:nowrap; }
+  #gauge-bg { flex:1; height:14px; background:#000a; border:1px solid #4a3f7a; border-radius:7px; overflow:hidden; }
+  #gauge-fill { height:100%; width:0%; background:linear-gradient(90deg,#2e8cff,#7df0ff,#fff); border-radius:6px; transition:width .35s; }
+  #gauge-bg.full #gauge-fill { animation:gaugeflash .5s infinite alternate; }
+  @keyframes gaugeflash { from{filter:brightness(1);} to{filter:brightness(1.8);} }
+  #ult-btn { padding:6px 10px; border:none; border-radius:8px; font-size:11px; font-weight:900; color:#001a2e; background:linear-gradient(180deg,#aef4ff,#3ec8ff); box-shadow:0 0 12px #3ec8ff; cursor:pointer; animation:ultpulse .7s infinite alternate; }
+  @keyframes ultpulse { from{transform:scale(1);} to{transform:scale(1.08);} }
+  #cmd-row { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
+  .cmd-card { background:#1c1440; border:2px solid #3a2f6a; border-radius:9px; padding:5px; text-align:center; }
+  .cmd-card.dead { opacity:.35; filter:grayscale(1); }
+  .cmd-head { display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:3px; }
+  .cmd-dot { width:9px; height:9px; border-radius:50%; flex:none; }
+  .cmd-name { font-size:10px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cmd-hpbg { height:5px; background:#000a; border-radius:3px; overflow:hidden; margin-bottom:4px; }
+  .cmd-hp { height:100%; background:linear-gradient(90deg,#3dff7e,#b6ff52); transition:width .25s; }
+  .skill-btn { display:block; width:100%; margin-top:3px; padding:6px 2px; border:1px solid #5a4f8a; border-radius:6px; background:#2a2055; color:#dcd6ff; font-size:9.5px; font-weight:700; cursor:pointer; line-height:1.25; }
+  .skill-btn .se { font-size:8px; opacity:.85; }
+  .skill-btn.sel { background:linear-gradient(180deg,#ffd95e,#ff9e2e); color:#3a2400; border-color:#ffe9a0; box-shadow:0 0 8px #ffb52e; }
+  .skill-btn:disabled { opacity:.5; }
+  #fusion-preview { min-height:16px; text-align:center; font-size:11px; font-weight:900; color:#ff7df0; text-shadow:0 0 8px #ff3df0; margin:5px 0 2px; }
+  #go-btn { display:block; width:100%; padding:11px; border:none; border-radius:10px; font-size:16px; font-weight:900; letter-spacing:5px; color:#3a0a00; background:linear-gradient(180deg,#ff9a5e,#ff5e2e); box-shadow:0 3px 0 #8c2400; cursor:pointer; }
+  #go-btn:disabled { filter:grayscale(1) brightness(.5); box-shadow:none; }
+  #go-btn:active:not(:disabled) { transform:translateY(2px); box-shadow:0 1px 0 #8c2400; }
+  #screen-result { background:radial-gradient(circle at 50% 30%, #2a1a55 0%, #0d0822 70%); align-items:center; justify-content:center; gap:14px; padding:20px; }
+  #result-title { font-size:44px; font-weight:900; letter-spacing:6px; animation:bannerpop .4s ease-out; }
+  #result-title.win { color:#ffd95e; text-shadow:0 0 18px #ff8c00,0 3px 0 #5a3a00; }
+  #result-title.lose { color:#7a8fbb; text-shadow:0 0 14px #2e4cff; }
+  #result-msg { font-size:13px; color:#ccd; text-align:center; line-height:1.6; }
+  .drop-label { font-size:13px; font-weight:800; color:#ff7df0; text-shadow:0 0 8px #ff3df0; }
+  #reward-card { width:160px; height:226px; border-radius:14px; padding:14px 10px; text-align:center; background:linear-gradient(160deg,#241a4a,#141031); border:3px solid #ffd95e; box-shadow:0 0 24px #ffb52e66; animation:cardflip .8s ease-out; }
+  @keyframes cardflip { 0%{transform:rotateY(90deg) scale(.6);opacity:0;} 60%{transform:rotateY(-15deg) scale(1.05);opacity:1;} 100%{transform:rotateY(0) scale(1);} }
+  #reward-card .glyph { width:60px; height:60px; margin:8px auto 10px; }
+  #reward-card .g-torus { border-width:12px; }
+  .rc-name { font-size:14px; font-weight:900; }
+  .rc-rare { color:#ffd95e; font-size:13px; letter-spacing:2px; margin-top:2px; }
+  .rc-stats { font-size:10.5px; color:#bbc; margin-top:7px; line-height:1.65; }
+  .rc-new { font-size:10px; color:#6dffa0; font-weight:800; margin-top:5px; }
+  #next-btn { padding:13px 38px; border:none; border-radius:12px; font-size:16px; font-weight:900; letter-spacing:2px; color:#3a2400; background:linear-gradient(180deg,#ffe27a,#ffae2e); box-shadow:0 4px 0 #9c5e00; cursor:pointer; }
+  #next-btn:active { transform:translateY(3px); box-shadow:0 1px 0 #9c5e00; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <div id="screen-select" class="screen">
+    <div class="sel-title">⚔ パーティ編成 ⚔</div>
+    <div class="sel-sub">モンスターバトルロード 3D ─ 全50種</div>
+    <div id="wave-info"></div>
+    <div id="card-grid"></div>
+    <div id="mode-row">
+      <button id="deploy-btn" class="big-btn" disabled>ひとりで出撃</button>
+      <button id="match-btn" class="big-btn" disabled>合言葉マッチ</button>
+    </div>
+    <div id="match-panel" class="hidden">
+      <input id="word-input" maxlength="12" placeholder="あいことば（友達と同じ言葉）">
+      <button id="match-start" class="mini-btn">開始</button>
+      <button id="match-cancel" class="mini-btn">やめる</button>
+      <div id="match-status"></div>
+    </div>
+    <div class="howto">カードを3枚タップして出撃！ ワザの属性の組み合わせで「合体技」発動！ ゲージMAXで超必殺技！<br>合言葉マッチ：友達と同じ合言葉を入れるとオンライン対戦できるぞ（勝っても負けてもカード1枚ゲット）</div>
+  </div>
+
+  <div id="screen-battle" class="screen hidden">
+    <div id="canvas-wrap">
+      <canvas id="c"></canvas>
+      <div id="labels"></div>
+      <div id="popups"></div>
+      <div id="flash"></div>
+      <div id="banner"></div>
+      <div id="topbar"><span id="tb-wave"></span><span id="tb-opp"></span><span id="tb-turn"></span></div>
+    </div>
+    <div id="battle-ui">
+      <div id="gauge-row">
+        <span class="gauge-lbl">必殺ゲージ</span>
+        <div id="gauge-bg"><div id="gauge-fill"></div></div>
+        <button id="ult-btn" class="hidden">超必殺技！</button>
+      </div>
+      <div id="cmd-row"></div>
+      <div id="fusion-preview"></div>
+      <button id="go-btn" disabled>たたかう！</button>
+    </div>
+  </div>
+
+  <div id="screen-result" class="screen hidden">
+    <div id="result-title"></div>
+    <div id="result-msg"></div>
+    <div class="drop-label">▼ カードドロップ！ ▼</div>
+    <div id="reward-card"></div>
+    <button id="next-btn">次のバトルへ</button>
+  </div>
+
+</div>
+
+<script>
+/* ================================================================
+   モンスターバトルロード 3D
+   - 全50種カード / 合体技 / 超必殺技
+   - 合言葉マッチ: PeerJS によるリアルタイム通信対戦
+     (決定論的ロックステップ同期: 同一シード乱数で両端末が同じ結果を計算)
+   ================================================================ */
+'use strict';
+
+/* ---------------- 属性定義 ---------------- */
+const ELEMS = {
+  phys:    { jp:'物理', color:'#d8d8d8' },
+  slash:   { jp:'斬撃', color:'#9ad6ff' },
+  fire:    { jp:'炎',   color:'#ff6a3d' },
+  ice:     { jp:'氷',   color:'#7fd8ff' },
+  thunder: { jp:'雷',   color:'#ffe14d' },
+  earth:   { jp:'大地', color:'#c98f4e' },
+  dark:    { jp:'闇',   color:'#b06aff' },
+  holy:    { jp:'光',   color:'#fff3b0' },
+  heal:    { jp:'回復', color:'#7dffa8' },
+};
+function S(name, elem, mult, target){ return { name, elem, mult, target:target||'one' }; }
+
+/* ---------------- モンスターカード 全50種 ---------------- */
+const CARD_POOL = [
+  { id:1,  name:'スライムナイト',     shape:'sphere',     color:0x3a7bff, hp:115, atk:26, spd:14, rare:1, skills:[S('スライムアタック','phys',1.05), S('ヒャドショット','ice',1.3)] },
+  { id:2,  name:'ロックゴーレム',     shape:'cube',       color:0x8a6f4d, hp:175, atk:30, spd:6,  rare:1, skills:[S('メガトンパンチ','phys',1.25), S('じひびき','earth',0.8,'all')] },
+  { id:3,  name:'いたずらモグラ',     shape:'cylinder',   color:0x996633, hp:105, atk:24, spd:9,  rare:1, skills:[S('ひっかき','phys',1.0), S('つちけむり','earth',1.1)] },
+  { id:4,  name:'マッドプラント',     shape:'cone',       color:0x44aa44, hp:115, atk:23, spd:7,  rare:1, skills:[S('ツタむち','phys',1.1), S('どくのこな','dark',1.0)] },
+  { id:5,  name:'コボルト',           shape:'cube',       color:0xaa7744, hp:110, atk:25, spd:11, rare:1, skills:[S('こん棒たたき','phys',1.1), S('いしつぶて','earth',1.05)] },
+  { id:6,  name:'おばけキャンドル',   shape:'cylinder',   color:0xffcc88, hp:95,  atk:24, spd:12, rare:1, skills:[S('ひのこ','fire',0.95), S('ロウまみれ','phys',1.0)] },
+  { id:7,  name:'アイスバブル',       shape:'sphere',     color:0xaaddff, hp:100, atk:23, spd:10, rare:1, skills:[S('こおりつぶて','ice',1.1), S('バブルプレス','phys',1.0)] },
+  { id:8,  name:'プチデーモン',       shape:'octahedron', color:0xcc66cc, hp:98,  atk:26, spd:13, rare:1, skills:[S('ちくちくフォーク','phys',1.05), S('プチダーク','dark',1.1)] },
+  { id:9,  name:'カミナリムシ',       shape:'sphere',     color:0xdddd44, hp:92,  atk:24, spd:15, rare:1, skills:[S('たいでん','thunder',1.05), S('かみつき','phys',1.0)] },
+  { id:10, name:'サボテンボール',     shape:'sphere',     color:0x66cc66, hp:108, atk:25, spd:8,  rare:1, skills:[S('はりとばし','phys',1.1), S('すなあらし','earth',0.85,'all')] },
+  { id:11, name:'ゆきだるまん',       shape:'sphere',     color:0xffffff, hp:112, atk:22, spd:7,  rare:1, skills:[S('ゆきつぶて','ice',1.05), S('こごえるいき','ice',0.8,'all')] },
+  { id:12, name:'ミニゴースト',       shape:'sphere',     color:0xddddff, hp:90,  atk:23, spd:14, rare:1, skills:[S('おどかす','dark',1.0), S('すりぬけアタック','phys',1.05)] },
+  { id:13, name:'ロックビートル',     shape:'cube',       color:0x887755, hp:130, atk:26, spd:5,  rare:1, skills:[S('ツノとっしん','phys',1.15), S('いわしぶき','earth',1.0)] },
+  { id:14, name:'ファイアラット',     shape:'cylinder',   color:0xff8855, hp:95,  atk:26, spd:16, rare:1, skills:[S('かみつき','phys',1.0), S('ひばしり','fire',1.1)] },
+  { id:15, name:'フレアドラゴン',     shape:'cone',       color:0xff4422, hp:135, atk:32, spd:10, rare:2, skills:[S('ファイアクロー','fire',1.15), S('かえんのいき','fire',0.85,'all')] },
+  { id:16, name:'サンダーイーグル',   shape:'octahedron', color:0xffd91c, hp:100, atk:28, spd:18, rare:2, skills:[S('かまいたち','slash',1.15), S('いなずま','thunder',0.95,'all')] },
+  { id:17, name:'ブリザードゴースト', shape:'sphere',     color:0xbfeaff, hp:105, atk:27, spd:13, rare:2, skills:[S('こおりのいき','ice',0.9,'all'), S('のろいのきり','dark',1.25)] },
+  { id:18, name:'エンジェルリング',   shape:'torus',      color:0xff9ad5, hp:95,  atk:24, spd:16, rare:2, skills:[S('ベホイミ','heal',1.7,'allies'), S('ホーリーアロー','holy',1.25)] },
+  { id:19, name:'ベノムスネーク',     shape:'cylinder',   color:0x66aa33, hp:120, atk:29, spd:13, rare:2, skills:[S('どくキバ','phys',1.15), S('ベノムブレス','dark',1.15)] },
+  { id:20, name:'ハーピー',           shape:'octahedron', color:0xffaacc, hp:110, atk:28, spd:17, rare:2, skills:[S('つばさ斬り','slash',1.15), S('みだれかまいたち','slash',0.9,'all')] },
+  { id:21, name:'マグマパペット',     shape:'cone',       color:0xff6622, hp:125, atk:30, spd:8,  rare:2, skills:[S('マグマパンチ','fire',1.2), S('ようがんりゅう','fire',0.85,'all')] },
+  { id:22, name:'フロストウルフ',     shape:'cylinder',   color:0x88ccee, hp:118, atk:29, spd:15, rare:2, skills:[S('こおりのキバ','ice',1.2), S('ブリザードハウル','ice',0.85,'all')] },
+  { id:23, name:'ストームハーピィ',   shape:'octahedron', color:0x88ddcc, hp:112, atk:28, spd:18, rare:2, skills:[S('ウィンドカッター','slash',1.2), S('サンダーボイス','thunder',1.1)] },
+  { id:24, name:'ボーンナイト',       shape:'cylinder',   color:0xccccaa, hp:135, atk:30, spd:10, rare:2, skills:[S('ホネつるぎ','slash',1.2), S('のろいのホネ','dark',1.15)] },
+  { id:25, name:'キノコキング',       shape:'cylinder',   color:0xcc88aa, hp:140, atk:27, spd:6,  rare:2, skills:[S('キノコヘッドバット','phys',1.2), S('ねむりほうし','dark',1.0)] },
+  { id:26, name:'エレキジェリー',     shape:'sphere',     color:0x66eeff, hp:105, atk:28, spd:14, rare:2, skills:[S('でんげき','thunder',1.2), S('ジェリープレス','phys',1.05)] },
+  { id:27, name:'サンドゴーレム',     shape:'cube',       color:0xddbb77, hp:150, atk:29, spd:5,  rare:2, skills:[S('サンドフィスト','phys',1.2), S('すなじごく','earth',0.9,'all')] },
+  { id:28, name:'ルビーキャンサー',   shape:'cube',       color:0xff5577, hp:128, atk:30, spd:9,  rare:2, skills:[S('ハサミ斬り','slash',1.2), S('バブルビーム','ice',1.1)] },
+  { id:29, name:'ウィスプ',           shape:'sphere',     color:0xffffcc, hp:100, atk:26, spd:16, rare:2, skills:[S('ひかりだま','holy',1.15), S('ちいさないのり','heal',1.2,'allies')] },
+  { id:30, name:'ガーゴイル',         shape:'octahedron', color:0x778899, hp:126, atk:30, spd:12, rare:2, skills:[S('いしのツメ','slash',1.15), S('がんせきなげ','earth',1.1)] },
+  { id:31, name:'キラーマシン2',      shape:'cube',       color:0xc0c8d8, hp:145, atk:34, spd:12, rare:3, skills:[S('れんぞくざん','slash',1.3), S('ほのおミサイル','fire',1.2)] },
+  { id:32, name:'デスナイト',         shape:'cylinder',   color:0x7733cc, hp:155, atk:36, spd:9,  rare:3, skills:[S('ダーククラッシュ','dark',1.3), S('あんこくぎり','slash',1.2)] },
+  { id:33, name:'ブレイブナイト',     shape:'cylinder',   color:0x2255dd, hp:140, atk:33, spd:13, rare:3, skills:[S('ゆうしゃぎり','slash',1.3), S('ライデイン','thunder',1.45)] },
+  { id:34, name:'インフェルノタイガー', shape:'cylinder', color:0xff5500, hp:145, atk:36, spd:15, rare:3, skills:[S('ごうえん斬り','slash',1.25), S('インフェルノ','fire',1.0,'all')] },
+  { id:35, name:'シルバーウルフ',     shape:'cylinder',   color:0xccccdd, hp:138, atk:35, spd:17, rare:3, skills:[S('ぎんが斬り','slash',1.3), S('ムーンビーム','holy',1.2)] },
+  { id:36, name:'サンダードラゴン',   shape:'cone',       color:0xffee33, hp:150, atk:36, spd:11, rare:3, skills:[S('いなずまブレス','thunder',0.95,'all'), S('らいげきツメ','thunder',1.3)] },
+  { id:37, name:'アイスゴーレム',     shape:'cube',       color:0x99ddff, hp:175, atk:34, spd:6,  rare:3, skills:[S('アイスハンマー','ice',1.3), S('ふぶき','ice',0.9,'all')] },
+  { id:38, name:'ダークビショップ',   shape:'cone',       color:0x663399, hp:130, atk:34, spd:13, rare:3, skills:[S('ダークプレス','dark',1.3), S('いやしのやみ','heal',1.4,'allies')] },
+  { id:39, name:'フェニックス',       shape:'octahedron', color:0xff9933, hp:135, atk:35, spd:18, rare:3, skills:[S('フレイムウィング','fire',1.25), S('さいせいのほのお','heal',1.5,'allies')] },
+  { id:40, name:'クリスタルナイト',   shape:'cylinder',   color:0x88ffee, hp:148, atk:35, spd:12, rare:3, skills:[S('クリスタルソード','slash',1.3), S('プリズムレイ','holy',1.15)] },
+  { id:41, name:'グランドベヒモス',   shape:'cube',       color:0x996644, hp:185, atk:37, spd:5,  rare:3, skills:[S('ベヒモスプレス','phys',1.35), S('じならし','earth',0.95,'all')] },
+  { id:42, name:'セイントドラゴン',   shape:'cone',       color:0xffffee, hp:155, atk:34, spd:12, rare:3, skills:[S('ホーリーブレス','holy',1.0,'all'), S('せいなるいのり','heal',1.5,'allies')] },
+  { id:43, name:'メタルキング',       shape:'sphere',     color:0xe8f0ff, hp:90,  atk:23, spd:22, rare:4, skills:[S('メタルアタック','phys',1.15), S('スターバースト','holy',1.0,'all')] },
+  { id:44, name:'バハムートカイザー', shape:'cone',       color:0xcc2244, hp:170, atk:40, spd:14, rare:4, skills:[S('カイザーフレア','fire',1.1,'all'), S('ドラゴンクロー','slash',1.4)] },
+  { id:45, name:'ライトニングロード', shape:'octahedron', color:0xffee55, hp:150, atk:39, spd:20, rare:4, skills:[S('ギガデイン','thunder',1.5), S('プラズマフィールド','thunder',1.0,'all')] },
+  { id:46, name:'アビスドラゴン',     shape:'cone',       color:0x442266, hp:180, atk:41, spd:10, rare:4, skills:[S('アビスブレス','dark',1.05,'all'), S('しんえんのツメ','slash',1.35)] },
+  { id:47, name:'ホーリーエンペラー', shape:'cylinder',   color:0xffeeaa, hp:160, atk:37, spd:13, rare:4, skills:[S('ジャッジメント','holy',1.45), S('めがみのいやし','heal',1.8,'allies')] },
+  { id:48, name:'ブリザードクイーン', shape:'torus',      color:0xaaeeff, hp:145, atk:38, spd:16, rare:4, skills:[S('アブソリュートアイス','ice',1.45), S('ダイヤモンドダスト','ice',1.0,'all')] },
+  { id:49, name:'りゅうおうゼノス',   shape:'cone',       color:0x8800ff, hp:200, atk:45, spd:15, rare:5, skills:[S('ゼノスフレア','fire',1.2,'all'), S('しゅうえんのツメ','slash',1.5)] },
+  { id:50, name:'マスタードラゴン',   shape:'torus',      color:0xffd700, hp:190, atk:43, spd:18, rare:5, skills:[S('ゴッドブレス','holy',1.2,'all'), S('てんくうのいやし','heal',2.0,'allies')] },
+];
+const cardById = id => CARD_POOL.find(c=>c.id===id) || CARD_POOL[0];
+
+const ENEMY_POOL = [
+  { name:'グリーンスライム', shape:'sphere',     color:0x44cc55, hp:85,  atk:18, spd:8,
+    skills:[S('たいあたり','phys',1.0), S('スライムビート','phys',1.2)] },
+  { name:'おおきづち',       shape:'cylinder',   color:0xcc9955, hp:105, atk:22, spd:6,
+    skills:[S('こんぼう','phys',1.1), S('痛恨の一撃','phys',1.6)] },
+  { name:'ゴースト',         shape:'sphere',     color:0xccccff, hp:75,  atk:20, spd:14,
+    skills:[S('ひっかき','phys',1.0), S('のろいの霧','dark',1.25)] },
+  { name:'ドラキー',         shape:'octahedron', color:0x6644aa, hp:70,  atk:17, spd:16,
+    skills:[S('きゅうけつ','phys',1.0), S('マヒャド斬り','ice',1.3)] },
+  { name:'ストーンマン',     shape:'cube',       color:0x999988, hp:160, atk:26, spd:4,
+    skills:[S('いわなげ','earth',1.1), S('じわれ','earth',1.4)] },
+  { name:'ダークドラゴン',   shape:'cone',       color:0x99203a, hp:190, atk:30, spd:9,
+    skills:[S('かみつき','phys',1.1), S('闇のほのお','dark',1.5)] },
+];
+
+const RECIPES = [
+  { elems:['fire','fire'],       name:'メラゾ・インフェルノ', mult:2.6, color:'#ff5522' },
+  { elems:['thunder','slash'],   name:'雷光烈斬',             mult:3.0, color:'#ffee44' },
+  { elems:['ice','fire'],        name:'氷炎乱舞',             mult:2.8, color:'#88ddff' },
+  { elems:['earth','phys'],      name:'グランドインパクト',   mult:2.7, color:'#cc8844' },
+  { elems:['dark','dark'],       name:'冥府の魔弾',           mult:2.9, color:'#aa55ff' },
+  { elems:['thunder','thunder'], name:'ギガクロスブレイク',   mult:3.2, color:'#ffff88' },
+  { elems:['slash','slash'],     name:'クロスカッター',       mult:2.5, color:'#aaddff' },
+  { elems:['ice','ice'],         name:'アブソリュートゼロ',   mult:2.8, color:'#bbf0ff' },
+  { elems:['fire','slash'],      name:'火炎旋風斬',           mult:2.7, color:'#ff8844' },
+  { elems:['earth','earth'],     name:'大地鳴動',             mult:2.6, color:'#cc9944' },
+  { elems:['holy','holy'],       name:'セイントレイ',         mult:2.9, color:'#fff8cc' },
+  { elems:['fire','thunder'],    name:'プラズマブレイズ',     mult:2.9, color:'#ffbb33' },
+  { elems:['ice','slash'],       name:'氷柱烈斬',             mult:2.7, color:'#99eeff' },
+  { elems:['dark','fire'],       name:'獄炎波',               mult:2.8, color:'#cc44aa' },
+  { elems:['holy','heal'],       name:'女神の祝福',           mult:1.6, color:'#fff0aa', blessing:true },
+];
+
+const ULT = { name:'オーバーソウル・バースト', mult:3.5 };
+
+/* ---------------- ゲーム状態 ---------------- */
+let uidSeq = 0;
+const state = {
+  owned: [], picked: [],
+  wave: 1, turn: 1,
+  mode: 'pve',
+  mySide: 'A',
+  units: { A:[], B:[] },
+  mySel: [null,null,null],
+  gauge: { A:0, B:0 },
+  phase: 'select',
+  ended: false,
+};
+[1,15,2,16].forEach(id => state.owned.push({ uid:++uidSeq, card:cardById(id) }));
+
+const pvp = {
+  peer:null, conn:null, isHost:false, seed:null,
+  oppParty:null, pickedUids:null,
+  myMoves:null, oppMoves:{},
+  started:false, connected:false, closedHandled:false, cancelled:false, lostConn:false,
+};
+
+/* ---------------- ユーティリティ ---------------- */
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r=>setTimeout(r,ms));
+const rand = (a,b) => a + Math.random()*(b-a);
+const easeOut = k => 1-Math.pow(1-k,3);
+const easeIn  = k => k*k*k;
+const easeInOut = k => k<.5 ? 4*k*k*k : 1-Math.pow(-2*k+2,3)/2;
+const otherSide = s => s==='A' ? 'B' : 'A';
+function tween(dur, fn){
+  return new Promise(res=>{
+    const t0 = performance.now();
+    (function step(t){
+      const k = Math.min(1,(t-t0)/dur);
+      fn(k);
+      if(k<1) requestAnimationFrame(step); else res();
+    })(t0);
+  });
+}
+function hexCss(c){ return '#'+c.toString(16).padStart(6,'0'); }
+
+/* ----- ゲームロジック用乱数 (PvPではシード同期で両端末が同一結果) ----- */
+let rngFn = Math.random;
+function mulberry32(a){
+  return function(){
+    a|=0; a = a+0x6D2B79F5|0;
+    let t = Math.imul(a^a>>>15, 1|a);
+    t = t+Math.imul(t^t>>>7, 61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+const grand = (a,b) => a + rngFn()*(b-a);
+const gri = n => Math.floor(rngFn()*n);
+function hashWord(w){
+  let h = 5381;
+  for(const ch of w){ h = ((h*33) ^ ch.codePointAt(0)) >>> 0; }
+  return h.toString(36) + w.length.toString(36);
+}
+
+/* ---------------- サウンド ---------------- */
+let actx = null;
+function snd(freq, dur=0.1, type='square', vol=0.12, slide=0){
+  try{
+    if(!actx) actx = new (window.AudioContext||window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.type = type; o.frequency.value = freq;
+    if(slide) o.frequency.linearRampToValueAtTime(Math.max(20,freq+slide), actx.currentTime+dur);
+    g.gain.setValueAtTime(vol, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.001, actx.currentTime+dur);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime+dur);
+  }catch(e){}
+}
+const sndHit    = () => { snd(110,0.12,'square',0.15); snd(55,0.15,'sawtooth',0.1); };
+const sndMagic  = () => snd(880,0.25,'sine',0.1,-500);
+const sndHeal   = () => { snd(660,0.15,'sine',0.1,200); setTimeout(()=>snd(880,0.2,'sine',0.08,150),120); };
+const sndFusion = () => { snd(220,0.4,'sawtooth',0.12,400); setTimeout(()=>snd(440,0.4,'square',0.1,300),150); };
+const sndUlt    = () => { snd(110,0.6,'sawtooth',0.14,600); setTimeout(()=>snd(330,0.5,'square',0.12,500),250); };
+const sndSelect = () => snd(880,0.06,'square',0.06);
+const sndWin    = () => { [523,659,784,1047].forEach((f,i)=>setTimeout(()=>snd(f,0.25,'square',0.1),i*140)); };
+const sndLose   = () => { [392,330,262,196].forEach((f,i)=>setTimeout(()=>snd(f,0.3,'triangle',0.1),i*180)); };
+
+/* ---------------- Three.js セットアップ ---------------- */
+const wrap = $('#canvas-wrap');
+const canvas = $('#c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x120b2e);
+scene.fog = new THREE.Fog(0x120b2e, 16, 34);
+const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 100);
+const camBase = new THREE.Vector3(0, 5.6, 9.2);
+const camLook = new THREE.Vector3(0, 0.6, -1.0);
+camera.position.copy(camBase);
+let shakeAmt = 0;
+function shake(a){ shakeAmt = Math.max(shakeAmt, a); }
+
+scene.add(new THREE.AmbientLight(0x8877cc, 0.7));
+const dl = new THREE.DirectionalLight(0xffffff, 0.9);
+dl.position.set(4,8,5); scene.add(dl);
+const pl = new THREE.PointLight(0xff9a4e, 0.6, 30);
+pl.position.set(0,6,0); scene.add(pl);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(9, 48),
+  new THREE.MeshStandardMaterial({ color:0x2a2348, roughness:0.9 })
+);
+ground.rotation.x = -Math.PI/2; scene.add(ground);
+const ring1 = new THREE.Mesh(
+  new THREE.RingGeometry(8.2, 8.6, 48),
+  new THREE.MeshBasicMaterial({ color:0x6a5fc0, side:THREE.DoubleSide, transparent:true, opacity:0.6 })
+);
+ring1.rotation.x = -Math.PI/2; ring1.position.y = 0.01; scene.add(ring1);
+const ring2 = new THREE.Mesh(
+  new THREE.RingGeometry(3.4, 3.55, 40),
+  new THREE.MeshBasicMaterial({ color:0xff8c3a, side:THREE.DoubleSide, transparent:true, opacity:0.4 })
+);
+ring2.rotation.x = -Math.PI/2; ring2.position.y = 0.012; scene.add(ring2);
+
+{
+  const g = new THREE.BufferGeometry();
+  const pos = new Float32Array(200*3);
+  for(let i=0;i<200;i++){
+    pos[i*3] = rand(-25,25); pos[i*3+1] = rand(3,20); pos[i*3+2] = rand(-25,5);
+  }
+  g.setAttribute('position', new THREE.BufferAttribute(pos,3));
+  scene.add(new THREE.Points(g, new THREE.PointsMaterial({ color:0xaaa0ff, size:0.09 })));
+}
+
+function onResize(){
+  const w = wrap.clientWidth, h = wrap.clientHeight;
+  if(w===0||h===0) return;
+  renderer.setSize(w,h,false);
+  camera.aspect = w/h;
+  camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', onResize);
+
+/* ---------------- キャラクター3Dモデル ---------------- */
+function makeBody(shape, color){
+  let geo;
+  switch(shape){
+    case 'cube':       geo = new THREE.BoxGeometry(1.1,1.1,1.1); break;
+    case 'cone':       geo = new THREE.ConeGeometry(0.72,1.5,20); break;
+    case 'cylinder':   geo = new THREE.CylinderGeometry(0.5,0.62,1.35,20); break;
+    case 'torus':      geo = new THREE.TorusGeometry(0.55,0.23,14,28); break;
+    case 'octahedron': geo = new THREE.OctahedronGeometry(0.8); break;
+    default:           geo = new THREE.SphereGeometry(0.68,24,18);
+  }
+  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color, roughness:0.35, metalness:0.35, emissive:0x000000
+  }));
+}
+function createUnit(data, side, idx){
+  const isAlly = (side === state.mySide);
+  const group = new THREE.Group();
+  const body = makeBody(data.shape, data.color);
+  group.add(body);
+  const eyeG = new THREE.SphereGeometry(0.1,10,8);
+  const pupG = new THREE.SphereGeometry(0.05,8,6);
+  for(const sx of [-0.24, 0.24]){
+    const e = new THREE.Mesh(eyeG, new THREE.MeshBasicMaterial({color:0xffffff}));
+    e.position.set(sx, 0.22, 0.58);
+    const p = new THREE.Mesh(pupG, new THREE.MeshBasicMaterial({color:0x111122}));
+    p.position.set(sx, 0.22, 0.66);
+    group.add(e); group.add(p);
+  }
+  const sh = new THREE.Mesh(
+    new THREE.CircleGeometry(0.62,20),
+    new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.35 })
+  );
+  sh.rotation.x = -Math.PI/2; sh.position.y = -0.74; group.add(sh);
+
+  const xs = isAlly ? [-1.95,0,1.95] : [-2.1,0,2.1];
+  const home = new THREE.Vector3(xs[idx], 0.8, isAlly ? 2.6 : -3.0);
+  group.position.copy(home);
+  const baseRotY = isAlly ? Math.PI : 0;
+  group.rotation.y = baseRotY;
+  scene.add(group);
+
+  const label = document.createElement('div');
+  label.className = 'unit-label';
+  label.innerHTML = `<div class="ul-name">${data.name}</div><div class="ul-hpbg"><div class="ul-hp" style="width:100%"></div></div>`;
+  $('#labels').appendChild(label);
+
+  return {
+    data, side, isAlly, idx, group, body, home, baseRotY,
+    hp:data.hp, maxHp:data.hp, atk:data.atk, spd:data.spd,
+    alive:true, busy:false, bobOff:Math.random()*6, label
+  };
+}
+function allUnits(){ return [...state.units.A, ...state.units.B]; }
+function aliveOf(side){ return state.units[side].filter(u=>u.alive); }
+function myUnits(){ return state.units[state.mySide]; }
+function removeUnit(u){
+  scene.remove(u.group);
+  if(u.label && u.label.parentNode) u.label.parentNode.removeChild(u.label);
+}
+function flashBody(u, color=0xff3333, ms=160){
+  u.body.material.emissive.setHex(color);
+  setTimeout(()=>{ if(u.body) u.body.material.emissive.setHex(0x000000); }, ms);
+}
+function bannerName(u){
+  return (state.mode==='pvp' && !u.isAlly ? 'あいての' : '') + u.data.name;
+}
+
+/* ---------------- パーティクル ---------------- */
+const particles = [];
+const partGeo = new THREE.SphereGeometry(0.07,6,5);
+function burst(pos, color, n=22, speed=3.2, size=1, gravity=4){
+  for(let i=0;i<n;i++){
+    const m = new THREE.Mesh(partGeo, new THREE.MeshBasicMaterial({ color, transparent:true, opacity:1 }));
+    m.position.copy(pos);
+    m.scale.setScalar(size*rand(0.6,1.6));
+    const th = rand(0,Math.PI*2), ph = rand(0,Math.PI);
+    const v = new THREE.Vector3(
+      Math.sin(ph)*Math.cos(th), Math.cos(ph)*0.9+0.4, Math.sin(ph)*Math.sin(th)
+    ).multiplyScalar(speed*rand(0.4,1.1));
+    scene.add(m);
+    particles.push({ m, v, life:1, decay:rand(1.4,2.4), g:gravity });
+  }
+}
+function updateParticles(dt){
+  for(let i=particles.length-1;i>=0;i--){
+    const p = particles[i];
+    p.life -= p.decay*dt;
+    if(p.life<=0){ scene.remove(p.m); p.m.material.dispose(); particles.splice(i,1); continue; }
+    p.m.position.addScaledVector(p.v, dt);
+    p.v.y -= p.g*dt;
+    p.m.material.opacity = Math.max(0,p.life);
+    p.m.scale.multiplyScalar(0.985);
+  }
+}
+
+/* ---------------- 画面エフェクト ---------------- */
+function worldToScreen(v){
+  const p = v.clone().project(camera);
+  return { x:(p.x*0.5+0.5)*wrap.clientWidth, y:(-p.y*0.5+0.5)*wrap.clientHeight };
+}
+function showPopup(pos3, text, cls=''){
+  const s = worldToScreen(pos3);
+  const d = document.createElement('div');
+  d.className = 'popup '+cls;
+  d.textContent = text;
+  d.style.left = s.x+'px'; d.style.top = s.y+'px';
+  $('#popups').appendChild(d);
+  setTimeout(()=>d.remove(), 950);
+}
+function showBanner(text, ms=900, cls=''){
+  const b = $('#banner');
+  b.innerHTML = `<span class="banner-text ${cls}">${text}</span>`;
+  clearTimeout(b._t);
+  b._t = setTimeout(()=>{ b.innerHTML=''; }, ms);
+}
+function flashScreen(color='#fff', ms=180, op=0.85){
+  const f = $('#flash');
+  f.style.transition = 'none';
+  f.style.background = color;
+  f.style.opacity = op;
+  requestAnimationFrame(()=>{
+    f.style.transition = `opacity ${ms}ms ease-out`;
+    f.style.opacity = 0;
+  });
+}
+
+/* ---------------- メインループ ---------------- */
+let lastT = performance.now();
+function loop(t){
+  requestAnimationFrame(loop);
+  const dt = Math.min(0.05,(t-lastT)/1000); lastT = t;
+  for(const u of allUnits()){
+    if(u.alive && !u.busy){
+      u.group.position.y = u.home.y + Math.sin(t*0.003 + u.bobOff)*0.09;
+      u.group.rotation.z = Math.sin(t*0.002 + u.bobOff)*0.04;
+    }
+  }
+  updateParticles(dt);
+  if(shakeAmt > 0.001){
+    camera.position.set(
+      camBase.x + rand(-1,1)*shakeAmt,
+      camBase.y + rand(-1,1)*shakeAmt,
+      camBase.z + rand(-1,1)*shakeAmt*0.5
+    );
+    shakeAmt *= Math.pow(0.0001, dt);
+  } else camera.position.copy(camBase);
+  camera.lookAt(camLook);
+  for(const u of allUnits()){
+    if(!u.label) continue;
+    if(!u.alive){ u.label.style.opacity = 0; continue; }
+    const s = worldToScreen(u.group.position.clone().add(new THREE.Vector3(0,1.25,0)));
+    u.label.style.left = s.x+'px';
+    u.label.style.top  = s.y+'px';
+  }
+  renderer.render(scene, camera);
+}
+requestAnimationFrame(loop);
+
+/* ---------------- 画面遷移 ---------------- */
+function showScreen(name){
+  for(const s of ['select','battle','result']) $('#screen-'+s).classList.toggle('hidden', s!==name);
+  if(name==='battle') onResize();
+}
+
+/* ---------------- 編成画面 ---------------- */
+function renderSelect(){
+  state.picked = [];
+  $('#wave-info').textContent = `WAVE ${state.wave} ／ 所持カード ${state.owned.length}枚（全${CARD_POOL.length}種）`;
+  const grid = $('#card-grid');
+  grid.innerHTML = '';
+  for(const o of state.owned){
+    const c = o.card;
+    const tile = document.createElement('div');
+    tile.className = 'card-tile';
+    tile.dataset.uid = o.uid;
+    tile.innerHTML = `
+      <div class="glyph g-${c.shape}" style="background:${hexCss(c.color)};border-color:${hexCss(c.color)}"></div>
+      <div class="t-name">${c.name}</div>
+      <div class="t-rare">${'★'.repeat(c.rare)}</div>
+      <div class="t-stats">HP${c.hp} 攻${c.atk} 速${c.spd}<br>A:${c.skills[0].name}<br>B:${c.skills[1].name}</div>`;
+    tile.addEventListener('click', ()=>togglePick(o.uid));
+    grid.appendChild(tile);
+  }
+  updateModeBtns();
+  matchStatus('');
+  showScreen('select');
+}
+function togglePick(uid){
+  const i = state.picked.indexOf(uid);
+  if(i>=0) state.picked.splice(i,1);
+  else {
+    if(state.picked.length>=3) return;
+    state.picked.push(uid);
+  }
+  sndSelect();
+  document.querySelectorAll('.card-tile').forEach(t=>{
+    const u = +t.dataset.uid;
+    const pi = state.picked.indexOf(u);
+    t.classList.toggle('picked', pi>=0);
+    const old = t.querySelector('.pick-badge');
+    if(old) old.remove();
+    if(pi>=0){
+      const b = document.createElement('div');
+      b.className = 'pick-badge'; b.textContent = pi+1;
+      t.appendChild(b);
+    }
+  });
+  updateModeBtns();
+}
+function updateModeBtns(){
+  const ok = state.picked.length===3;
+  $('#deploy-btn').disabled = !ok;
+  $('#match-btn').disabled = !ok;
+}
+$('#deploy-btn').addEventListener('click', ()=>startBattle('pve'));
+$('#match-btn').addEventListener('click', ()=>{
+  $('#match-panel').classList.toggle('hidden');
+});
+/* ---------------- 合言葉マッチング (PeerJS) ---------------- */
+function matchStatus(msg){ $('#match-status').textContent = msg; }
+function cleanupPvp(){
+  pvp.closedHandled = true;
+  try{ if(pvp.conn) pvp.conn.close(); }catch(e){}
+  try{ if(pvp.peer) pvp.peer.destroy(); }catch(e){}
+  pvp.peer = null; pvp.conn = null; pvp.isHost = false; pvp.seed = null;
+  pvp.oppParty = null; pvp.myMoves = null; pvp.oppMoves = {};
+  pvp.started = false; pvp.connected = false; pvp.closedHandled = false; pvp.cancelled = false;
+  pvp.lostConn = false;
+}
+$('#match-start').addEventListener('click', startMatching);
+$('#match-cancel').addEventListener('click', ()=>{
+  pvp.cancelled = true;
+  cleanupPvp();
+  matchStatus('マッチングを中止しました');
+});
+function startMatching(){
+  const word = $('#word-input').value.trim();
+  if(!word){ matchStatus('合言葉を入力してね'); return; }
+  if(state.picked.length!==3){ matchStatus('先にカードを3枚えらんでね'); return; }
+  if(typeof Peer === 'undefined'){ matchStatus('通信ライブラリを読み込めなかった…ネット接続を確認してね'); return; }
+  cleanupPvp();
+  pvp.pickedUids = [...state.picked];
+  matchStatus('せつぞく中…');
+  const hostId = 'mbr3d-' + hashWord(word);
+  const p = new Peer(hostId);
+  pvp.peer = p;
+  p.on('open', ()=>{
+    if(pvp.cancelled) return;
+    pvp.isHost = true;
+    matchStatus(`部屋を作ったよ！ 友達が同じ合言葉「${word}」で参加するのを待っています…`);
+  });
+  p.on('connection', conn=>{
+    if(pvp.conn){ try{conn.close();}catch(e){} return; }
+    bindConn(conn);
+  });
+  p.on('error', err=>{
+    if(pvp.cancelled) return;
+    if(err.type==='unavailable-id'){
+      matchStatus('友達の部屋を発見！ 接続中…');
+      const p2 = new Peer();
+      pvp.peer = p2;
+      p2.on('open', ()=>{
+        if(pvp.cancelled) return;
+        pvp.isHost = false;
+        const conn = p2.connect(hostId, { reliable:true });
+        bindConn(conn);
+        setTimeout(()=>{
+          if(!pvp.connected && !pvp.cancelled && !pvp.started){
+            matchStatus('接続できなかった…もう一度ためしてね');
+            cleanupPvp();
+          }
+        }, 15000);
+      });
+      p2.on('error', e2=>{
+        if(pvp.cancelled || pvp.connected) return;
+        if(e2.type==='peer-unavailable'){
+          matchStatus('部屋が見つからなかった…もう一度「開始」を押してね');
+        } else {
+          matchStatus('通信エラー ('+e2.type+')…もう一度ためしてね');
+        }
+      });
+    } else if(!pvp.connected){
+      matchStatus('通信エラー ('+err.type+')。ネット環境によっては繋がらないことがあるよ');
+    }
+  });
+}
+function bindConn(conn){
+  pvp.conn = conn;
+  conn.on('open', ()=>{
+    if(pvp.cancelled){ try{conn.close();}catch(e){} return; }
+    pvp.connected = true;
+    matchStatus('マッチ成立！ バトル準備中…');
+    const partyIds = pvp.pickedUids.map(uid => state.owned.find(o=>o.uid===uid).card.id);
+    conn.send({ t:'hello', party:partyIds });
+  });
+  conn.on('data', handleMsg);
+  conn.on('close', onPvpClosed);
+  conn.on('error', onPvpClosed);
+}
+function handleMsg(m){
+  if(!m || typeof m!=='object') return;
+  if(m.t==='hello'){
+    if(Array.isArray(m.party) && m.party.length===3){
+      pvp.oppParty = m.party.map(id=>cardById(id).id);
+      if(pvp.isHost){
+        pvp.seed = (Math.random()*0xFFFFFFFF)>>>0;
+        try{ pvp.conn.send({ t:'start', seed:pvp.seed }); }catch(e){}
+      }
+      tryStartPvp();
+    }
+  } else if(m.t==='start'){
+    pvp.seed = m.seed>>>0;
+    tryStartPvp();
+  } else if(m.t==='moves'){
+    pvp.oppMoves[m.turn] = m;
+    tryResolve();
+  }
+}
+function tryStartPvp(){
+  if(pvp.oppParty && pvp.seed!==null && pvp.connected && !pvp.started){
+    pvp.started = true;
+    $('#match-panel').classList.add('hidden');
+    startBattle('pvp');
+  }
+}
+function onPvpClosed(){
+  if(pvp.closedHandled) return;
+  pvp.closedHandled = true;
+  if(state.mode==='pvp' && pvp.started && !state.ended){
+    if(state.phase==='anim'){
+      // 自分側がまだ演出中: 相手は先に決着して切断した可能性が高い
+      // → このターンを最後まで再生し、決着しなければ切断勝ちにする
+      pvp.lostConn = true;
+    } else {
+      showBanner('あいてとの通信がきれた！', 1500);
+      setTimeout(()=>endBattle(true, '（あいてが切断したため勝利）'), 900);
+    }
+  } else if(!pvp.started){
+    matchStatus('通信がきれた…もう一度ためしてね');
+  }
+}
+
+/* ---------------- バトル開始 ---------------- */
+function startBattle(mode){
+  state.mode = mode;
+  for(const u of allUnits()) removeUnit(u);
+  for(const p of particles) scene.remove(p.m);
+  particles.length = 0;
+  $('#popups').innerHTML = ''; $('#banner').innerHTML = '';
+
+  state.mySide = (mode==='pvp' && !pvp.isHost) ? 'B' : 'A';
+  const oppS = otherSide(state.mySide);
+  state.units = { A:[], B:[] };
+
+  const pickedUids = (mode==='pvp') ? pvp.pickedUids : state.picked;
+  state.units[state.mySide] = pickedUids.map((uid,i)=>{
+    const card = state.owned.find(o=>o.uid===uid).card;
+    return createUnit(card, state.mySide, i);
+  });
+
+  if(mode==='pvp'){
+    state.units[oppS] = pvp.oppParty.map((id,i)=>createUnit(cardById(id), oppS, i));
+  } else {
+    const hpF  = 1 + (state.wave-1)*0.30;
+    const atkF = 1 + (state.wave-1)*0.17;
+    const picks = [];
+    if(state.wave % 3 === 0) picks.push(ENEMY_POOL[5]);
+    while(picks.length<3) picks.push(ENEMY_POOL[Math.floor(Math.random()*ENEMY_POOL.length)]);
+    state.units.B = picks.map((e,i)=>{
+      const d = { ...e, hp:Math.round(e.hp*hpF), atk:Math.round(e.atk*atkF) };
+      return createUnit(d, 'B', i);
+    });
+  }
+
+  state.turn = 1;
+  state.gauge = { A:0, B:0 };
+  state.ended = false;
+  pvp.myMoves = null;
+  showScreen('battle');
+  showBanner(mode==='pvp' ? '⚔ 合言葉マッチ成立！ バトルスタート！ ⚔' : `WAVE ${state.wave}  バトルスタート！`, 1400);
+  startSelection();
+}
+
+/* ---------------- コマンド選択フェーズ ---------------- */
+function startSelection(){
+  state.phase = 'select';
+  state.mySel = [null,null,null];
+  $('#tb-wave').textContent = state.mode==='pvp' ? '⚔ 通信対戦' : `WAVE ${state.wave}`;
+  $('#tb-turn').textContent = `TURN ${state.turn}`;
+  updateOppGaugeUI();
+  const row = $('#cmd-row');
+  row.innerHTML = '';
+  myUnits().forEach((u,i)=>{
+    const card = document.createElement('div');
+    card.className = 'cmd-card' + (u.alive?'':' dead');
+    const hpP = Math.max(0, u.hp/u.maxHp*100);
+    card.innerHTML = `
+      <div class="cmd-head"><span class="cmd-dot" style="background:${hexCss(u.data.color)}"></span><span class="cmd-name">${u.data.name}</span></div>
+      <div class="cmd-hpbg"><div class="cmd-hp" style="width:${hpP}%"></div></div>`;
+    u.data.skills.forEach((sk,si)=>{
+      const btn = document.createElement('button');
+      btn.className = 'skill-btn';
+      btn.disabled = !u.alive;
+      btn.innerHTML = `${si===0?'Ⓐ':'Ⓑ'} ${sk.name}<br><span class="se">[${ELEMS[sk.elem].jp}${sk.target==='all'?'・全体':sk.target==='allies'?'・味方':''}]</span>`;
+      btn.addEventListener('click', ()=>{
+        if(state.phase!=='select') return;
+        state.mySel[i] = si;
+        sndSelect();
+        card.querySelectorAll('.skill-btn').forEach((b,bi)=>b.classList.toggle('sel', bi===si));
+        updateFusionPreview();
+        updateGoBtn();
+      });
+      card.appendChild(btn);
+    });
+    row.appendChild(card);
+  });
+  updateFusionPreview();
+  updateGoBtn();
+  updateGaugeUI();
+}
+function allSelected(){
+  return myUnits().every((u,i)=>!u.alive || state.mySel[i]!==null);
+}
+function updateGoBtn(){ $('#go-btn').disabled = !(state.phase==='select' && allSelected()); }
+function updateGaugeUI(){
+  $('#gauge-fill').style.width = state.gauge[state.mySide]+'%';
+  $('#gauge-bg').classList.toggle('full', state.gauge[state.mySide]>=100);
+  $('#ult-btn').classList.toggle('hidden', !(state.gauge[state.mySide]>=100 && state.phase==='select'));
+  updateOppGaugeUI();
+}
+function updateOppGaugeUI(){
+  $('#tb-opp').textContent = state.mode==='pvp' ? `あいてゲージ ${state.gauge[otherSide(state.mySide)]}%` : '';
+}
+function addGaugeFor(side, n){
+  state.gauge[side] = Math.min(100, state.gauge[side]+n);
+  updateGaugeUI();
+}
+function findFusionFor(side, sel){
+  const picks = [];
+  state.units[side].forEach((u,i)=>{
+    if(u.alive && (sel[i]===0 || sel[i]===1)){
+      picks.push({ u, skill:u.data.skills[sel[i]] });
+    }
+  });
+  for(const r of RECIPES){
+    for(let a=0;a<picks.length;a++){
+      for(let b=0;b<picks.length;b++){
+        if(a===b) continue;
+        if(picks[a].skill.elem===r.elems[0] && picks[b].skill.elem===r.elems[1]){
+          return { recipe:r, pair:[picks[a],picks[b]] };
+        }
+      }
+    }
+  }
+  return null;
+}
+function updateFusionPreview(){
+  const f = findFusionFor(state.mySide, state.mySel);
+  $('#fusion-preview').textContent = f ? `⚡ 合体技『${f.recipe.name}』スタンバイ！！ ⚡` : '';
+}
+function lockSelectionUI(){
+  $('#go-btn').disabled = true;
+  $('#ult-btn').classList.add('hidden');
+  document.querySelectorAll('.skill-btn').forEach(b=>b.disabled=true);
+  $('#fusion-preview').textContent = '';
+}
+$('#go-btn').addEventListener('click', ()=>{
+  if(state.phase==='select' && allSelected()) confirmMoves(false);
+});
+$('#ult-btn').addEventListener('click', ()=>{
+  if(state.phase==='select' && state.gauge[state.mySide]>=100) confirmMoves(true);
+});
+function confirmMoves(ult){
+  if(state.mode==='pve'){
+    rngFn = Math.random;
+    const plans = {};
+    plans[state.mySide] = { sel:[...state.mySel], ult };
+    plans[otherSide(state.mySide)] = null;
+    runTurnWith(plans);
+  } else {
+    state.phase = 'wait';
+    lockSelectionUI();
+    pvp.myMoves = { t:'moves', turn:state.turn, sel:[...state.mySel], ult };
+    try{ pvp.conn.send(pvp.myMoves); }catch(e){}
+    showBanner('あいての行動をまっています…', 60000, 'wait');
+    tryResolve();
+  }
+}
+function sanitizeSel(sel){
+  const out = [null,null,null];
+  if(Array.isArray(sel)) for(let i=0;i<3;i++) if(sel[i]===0||sel[i]===1) out[i]=sel[i];
+  return out;
+}
+function tryResolve(){
+  if(state.mode!=='pvp' || state.phase!=='wait') return;
+  const om = pvp.oppMoves[state.turn];
+  if(!pvp.myMoves || pvp.myMoves.turn!==state.turn || !om) return;
+  rngFn = mulberry32((pvp.seed ^ Math.imul(state.turn, 0x9E3779B9)) >>> 0);
+  const plans = {};
+  plans[state.mySide] = { sel:sanitizeSel(pvp.myMoves.sel), ult:!!pvp.myMoves.ult };
+  plans[otherSide(state.mySide)] = { sel:sanitizeSel(om.sel), ult:!!om.ult };
+  pvp.myMoves = null;
+  delete pvp.oppMoves[state.turn];
+  runTurnWith(plans);
+}
+
+/* ---------------- ダメージ処理 ---------------- */
+function calcDmg(atk, mult){ return Math.max(1, Math.round(atk*mult*grand(0.85,1.15))); }
+async function applyDamage(target, dmg, attacker, popCls){
+  target.hp = Math.max(0, target.hp - dmg);
+  showPopup(target.group.position.clone().add(new THREE.Vector3(0,0.9,0)), dmg, popCls||(target.isAlly?'dmg-ally':'dmg-enemy'));
+  flashBody(target);
+  updateHpUI(target);
+  addGaugeFor(target.side, 11);
+  if(attacker) addGaugeFor(attacker.side, 7);
+  if(target.hp<=0 && target.alive) await killUnit(target);
+}
+function applyHeal(target, amt){
+  if(!target.alive) return;
+  const real = Math.min(amt, target.maxHp-target.hp);
+  target.hp += real;
+  showPopup(target.group.position.clone().add(new THREE.Vector3(0,0.9,0)), '+'+real, 'heal');
+  updateHpUI(target);
+}
+function updateHpUI(u){
+  const p = Math.max(0, u.hp/u.maxHp*100);
+  const bar = u.label.querySelector('.ul-hp');
+  bar.style.width = p+'%';
+  bar.className = 'ul-hp' + (p<=25?' crit':p<=50?' low':'');
+  if(u.isAlly){
+    const c = $('#cmd-row').children[u.idx];
+    if(c){ const b = c.querySelector('.cmd-hp'); if(b) b.style.width = p+'%'; }
+  }
+}
+async function killUnit(u){
+  u.alive = false; u.busy = true;
+  snd(80,0.4,'sawtooth',0.12,-40);
+  burst(u.group.position.clone(), u.data.color, 26, 3.5, 1.2);
+  await tween(420, k=>{
+    u.group.scale.setScalar(1-easeIn(k));
+    u.group.rotation.y += 0.25;
+  });
+  u.group.visible = false;
+}
+
+/* ---------------- 攻撃アニメーション ----------------
+   plans = [{ t:対象, dmg:確定ダメージ }] : PvP同期のためダメージは事前計算 */
+async function meleeAttack(u, plans, skill){
+  u.busy = true;
+  const p0 = plans[0];
+  const from = u.home.clone();
+  const dir = p0.t.group.position.clone().sub(from);
+  const to = from.clone().addScaledVector(dir, 0.7);
+  to.y = from.y;
+  showBanner(`${bannerName(u)}の ${skill.name}！`, 800);
+  await tween(240, k=>{
+    u.group.position.lerpVectors(from, to, easeIn(k));
+    u.group.position.y = from.y + Math.sin(k*Math.PI)*0.9;
+    u.group.rotation.y += 0.45;
+  });
+  sndHit();
+  shake(0.18);
+  flashScreen('#fff', 110, 0.3);
+  burst(p0.t.group.position.clone(), 0xffffff, 16, 3.2);
+  burst(p0.t.group.position.clone(), parseInt(ELEMS[skill.elem].color.slice(1),16), 14, 2.6);
+  await applyDamage(p0.t, p0.dmg, u);
+  await tween(260, k=>{ u.group.position.lerpVectors(to, from, easeOut(k)); });
+  u.group.position.copy(from);
+  u.group.rotation.y = u.baseRotY;
+  u.busy = false;
+}
+async function rangedAttack(u, plans, skill){
+  u.busy = true;
+  const col = parseInt(ELEMS[skill.elem].color.slice(1),16);
+  showBanner(`${bannerName(u)}の ${skill.name}！`, 800);
+  sndMagic();
+  burst(u.group.position.clone().add(new THREE.Vector3(0,0.6,0)), col, 12, 1.6, 0.8, -1);
+  flashBody(u, col, 250);
+  await tween(200, k=>{ u.group.position.y = u.home.y + Math.sin(k*Math.PI)*0.5; });
+  await Promise.all(plans.map(async (p,ti)=>{
+    await sleep(ti*90);
+    const m = new THREE.Mesh(
+      new THREE.SphereGeometry(0.2,10,8),
+      new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.95 })
+    );
+    const from = u.group.position.clone().add(new THREE.Vector3(0,0.5,0));
+    const to = p.t.group.position.clone();
+    scene.add(m);
+    await tween(320, k=>{
+      m.position.lerpVectors(from, to, k);
+      m.position.y += Math.sin(k*Math.PI)*1.4;
+      m.scale.setScalar(1+Math.sin(k*Math.PI)*0.7);
+    });
+    scene.remove(m);
+    sndHit();
+    shake(0.14);
+    burst(to, col, 20, 3.0);
+    await applyDamage(p.t, p.dmg, u);
+  }));
+  u.busy = false;
+}
+async function healAction(u, skill){
+  u.busy = true;
+  showBanner(`${bannerName(u)}の ${skill.name}！`, 800);
+  sndHeal();
+  flashBody(u, 0x33ff66, 350);
+  await tween(300, k=>{ u.group.position.y = u.home.y + Math.sin(k*Math.PI)*0.6; u.group.rotation.y += 0.2; });
+  const amt = Math.round(u.atk*skill.mult);
+  for(const a of aliveOf(u.side)){
+    burst(a.group.position.clone().add(new THREE.Vector3(0,-0.3,0)), 0x6dffa0, 14, 1.4, 0.9, -2.5);
+    applyHeal(a, amt);
+  }
+  await sleep(380);
+  u.group.rotation.y = u.baseRotY;
+  u.busy = false;
+}
+async function performSkill(u, skill){
+  if(skill.elem==='heal' || skill.target==='allies'){ await healAction(u, skill); return; }
+  const oppList = aliveOf(otherSide(u.side));
+  if(oppList.length===0) return;
+  // ★同期ポイント: 対象とダメージをここで(シード乱数で)確定
+  const targets = skill.target==='all' ? [...oppList] : [oppList[gri(oppList.length)]];
+  const plans = targets.map(t=>({ t, dmg:calcDmg(u.atk, skill.mult) }));
+  if((skill.elem==='phys'||skill.elem==='slash') && skill.target!=='all') await meleeAttack(u, plans, skill);
+  else await rangedAttack(u, plans, skill);
+}
+async function aiAction(u){
+  if(aliveOf(otherSide(u.side)).length===0) return;
+  const skill = u.data.skills[gri(u.data.skills.length)];
+  await performSkill(u, skill);
+}
+
+/* ---------------- 合体技演出 ---------------- */
+async function fusionAttack(pair, recipe){
+  const [p1, p2] = pair;
+  const side = p1.u.side;
+  const mine = p1.u.isAlly;
+  p1.u.busy = true; p2.u.busy = true;
+  const col = parseInt(recipe.color.slice(1),16);
+  sndFusion();
+  showBanner(`⚡${mine?'':'あいての'}合体技『${recipe.name}』！！⚡`, 1600, 'fusion');
+  flashScreen(recipe.color, 280, 0.55);
+  flashBody(p1.u, col, 1400); flashBody(p2.u, col, 1400);
+  const zc = mine ? 1.2 : -1.6;
+  const c1 = new THREE.Vector3(-0.7, 1.1, zc), c2 = new THREE.Vector3(0.7, 1.1, zc);
+  const f1 = p1.u.home.clone(), f2 = p2.u.home.clone();
+  await tween(380, k=>{
+    const e = easeInOut(k);
+    p1.u.group.position.lerpVectors(f1, c1, e);
+    p2.u.group.position.lerpVectors(f2, c2, e);
+    p1.u.group.rotation.y += 0.3; p2.u.group.rotation.y -= 0.3;
+  });
+  const chargePos = new THREE.Vector3(0, 1.2, zc);
+  for(let i=0;i<3;i++){
+    burst(chargePos, col, 16, 2.2, 1.0, -1);
+    snd(330+i*220, 0.12, 'square', 0.08);
+    await sleep(160);
+  }
+  // ★同期ポイント: ダメージ事前計算
+  const oppTargets = [...aliveOf(otherSide(side))];
+  const dmgBase = p1.u.atk + p2.u.atk;
+  if(recipe.blessing){
+    flashScreen('#fff8d0', 400, 0.8);
+    sndHeal();
+    const healAmt = Math.round(dmgBase*0.9);
+    const dmgs = oppTargets.map(()=>calcDmg(dmgBase, recipe.mult));
+    for(const a of aliveOf(side)){
+      burst(a.group.position.clone(), 0xfff0aa, 22, 1.8, 1.1, -2.5);
+      applyHeal(a, healAmt);
+    }
+    await sleep(400);
+    for(let i=0;i<oppTargets.length;i++){
+      burst(oppTargets[i].group.position.clone(), 0xfff0aa, 18, 2.6);
+      await applyDamage(oppTargets[i], dmgs[i], p1.u);
+    }
+  } else {
+    const dmgs = oppTargets.map(()=>calcDmg(dmgBase, recipe.mult));
+    const beamMat = new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending });
+    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5,1.1,10,16,1,true), beamMat);
+    beam.rotation.x = Math.PI/2;
+    beam.position.set(0, 1.1, mine ? -2.2 : 1.9);
+    scene.add(beam);
+    beam.scale.set(0.05,1,0.05);
+    snd(150,0.5,'sawtooth',0.15,500);
+    await tween(300, k=>{ const e = easeOut(k); beam.scale.set(e,1,e); });
+    flashScreen(recipe.color, 350, 0.75);
+    shake(0.55);
+    for(let i=0;i<oppTargets.length;i++){
+      burst(oppTargets[i].group.position.clone(), col, 30, 4.2, 1.3);
+      burst(oppTargets[i].group.position.clone(), 0xffffff, 14, 3.0);
+      await applyDamage(oppTargets[i], dmgs[i], p1.u, 'big');
+      await sleep(90);
+    }
+    await tween(250, k=>{ beamMat.opacity = 0.9*(1-k); beam.scale.x = beam.scale.z = 1+k*0.8; });
+    scene.remove(beam);
+  }
+  await tween(320, k=>{
+    const e = easeOut(k);
+    p1.u.group.position.lerpVectors(c1, f1, e);
+    p2.u.group.position.lerpVectors(c2, f2, e);
+  });
+  p1.u.group.position.copy(f1); p2.u.group.position.copy(f2);
+  p1.u.group.rotation.y = p1.u.baseRotY; p2.u.group.rotation.y = p2.u.baseRotY;
+  p1.u.busy = false; p2.u.busy = false;
+}
+
+/* ---------------- 超必殺技演出 ---------------- */
+async function ultimateAttack(side){
+  state.gauge[side] = 0;
+  updateGaugeUI();
+  const units = aliveOf(side);
+  if(units.length===0) return;
+  const mine = units[0].isAlly;
+  sndUlt();
+  showBanner(`✦${mine?'':'あいての'}超必殺技『${ULT.name}』！！✦`, 2000, 'ult');
+  flashScreen('#aef4ff', 300, 0.6);
+  for(const a of units){ a.busy = true; flashBody(a, 0x55ccff, 2200); }
+  await tween(450, k=>{
+    const e = easeOut(k);
+    for(const a of units) a.group.position.y = a.home.y + e*1.4;
+  });
+  const ballMat = new THREE.MeshBasicMaterial({ color:0x7df0ff, transparent:true, opacity:0.95, blending:THREE.AdditiveBlending });
+  const ball = new THREE.Mesh(new THREE.SphereGeometry(1,20,16), ballMat);
+  ball.position.set(0, 3.2, mine ? 1.5 : -1.8);
+  ball.scale.setScalar(0.05);
+  scene.add(ball);
+  for(let i=0;i<4;i++){
+    burst(ball.position.clone(), 0x7df0ff, 14, 2.5, 1.0, -1);
+    snd(440+i*180, 0.12, 'sine', 0.09);
+    await tween(150, k=>{ ball.scale.setScalar(0.05 + (i+k)*0.32); });
+  }
+  snd(100,0.7,'sawtooth',0.18,700);
+  const from = ball.position.clone(), to = new THREE.Vector3(0, 1.0, mine ? -3.0 : 2.6);
+  await tween(280, k=>{
+    ball.position.lerpVectors(from, to, easeIn(k));
+    ball.rotation.y += 0.5;
+  });
+  scene.remove(ball);
+  flashScreen('#ffffff', 500, 0.95);
+  shake(0.9);
+  sndHit(); setTimeout(sndHit, 120); setTimeout(sndHit, 260);
+  burst(to, 0x7df0ff, 50, 5.5, 1.6);
+  burst(to, 0xffffff, 30, 4.5, 1.3);
+  burst(to, 0xffe14d, 25, 3.5, 1.2);
+  // ★同期ポイント: ダメージ事前計算
+  const totalAtk = units.reduce((s,a)=>s+a.atk, 0);
+  const oppTargets = [...aliveOf(otherSide(side))];
+  const dmgs = oppTargets.map(()=>calcDmg(totalAtk, ULT.mult));
+  for(let i=0;i<oppTargets.length;i++){
+    burst(oppTargets[i].group.position.clone(), 0x7df0ff, 22, 3.5);
+    await applyDamage(oppTargets[i], dmgs[i], units[0], 'big');
+    await sleep(110);
+  }
+  await tween(380, k=>{
+    const e = easeOut(k);
+    for(const a of units) a.group.position.y = a.home.y + (1-e)*1.4;
+  });
+  for(const a of units){ a.group.position.y = a.home.y; a.busy = false; }
+}
+
+/* ---------------- ターン実行 ---------------- */
+function checkEnd(){
+  if(aliveOf(otherSide(state.mySide)).length===0) return 'win';
+  if(aliveOf(state.mySide).length===0) return 'lose';
+  return null;
+}
+/* plans = { A:{sel,ult}|null, B:{sel,ult}|null } : PvEではB=null(AIが行動) */
+async function runTurnWith(plans){
+  state.phase = 'anim';
+  lockSelectionUI();
+  $('#banner').innerHTML = '';
+
+  const acts = [];
+  for(const side of ['A','B']){
+    const p = plans[side];
+    if(!p) continue;
+    if(p.ult && state.gauge[side]>=100){
+      acts.push({ speed: side==='A'?9999:9998, run:()=>ultimateAttack(side) });
+      continue;
+    }
+    const fusion = findFusionFor(side, p.sel);
+    const fused = fusion ? [fusion.pair[0].u, fusion.pair[1].u] : [];
+    if(fusion){
+      acts.push({
+        speed: 999 - (side==='A'?0:1),
+        run: ()=>fusionAttack(fusion.pair, fusion.recipe),
+        check: ()=>fusion.pair[0].u.alive && fusion.pair[1].u.alive
+      });
+    }
+    state.units[side].forEach((u,i)=>{
+      if(!u.alive || p.sel[i]===null || fused.includes(u)) return;
+      const skill = u.data.skills[p.sel[i]];
+      acts.push({ speed:u.spd+grand(0,2), run:()=>performSkill(u, skill), check:()=>u.alive });
+    });
+  }
+  if(state.mode==='pve'){
+    for(const e of aliveOf('B')){
+      acts.push({ speed:e.spd+grand(0,2), run:()=>aiAction(e), check:()=>e.alive });
+    }
+  }
+  acts.sort((a,b)=>b.speed-a.speed);
+
+  for(const act of acts){
+    if(state.ended) return;
+    if(checkEnd()) break;
+    if(act.check && !act.check()) continue;
+    await act.run();
+    await sleep(180);
+  }
+
+  if(state.ended) return;
+  const end = checkEnd();
+  if(end){ await endBattle(end==='win'); return; }
+  if(state.mode==='pvp' && pvp.lostConn){
+    showBanner('あいてとの通信がきれた！', 1500);
+    await sleep(900);
+    await endBattle(true, '（あいてが切断したため勝利）');
+    return;
+  }
+  state.turn++;
+  startSelection();
+  if(state.mode==='pvp') tryResolve(); // 相手の次ターン入力が先に届いている場合に備える
+}
+
+/* ---------------- バトル終了 → 報酬 ---------------- */
+function rollReward(){
+  // ★1=40% ★2=32% ★3=18% ★4=8% ★5=2%
+  const r = Math.random();
+  const rare = r<0.40?1 : r<0.72?2 : r<0.90?3 : r<0.98?4 : 5;
+  const cands = CARD_POOL.filter(c=>c.rare===rare);
+  return cands[Math.floor(Math.random()*cands.length)];
+}
+async function endBattle(win, note){
+  if(state.ended) return;
+  state.ended = true;
+  await sleep(450);
+  if(win){
+    sndWin();
+    showBanner('WIN！！', 1400);
+    flashScreen('#ffe27a', 500, 0.5);
+    const alive = aliveOf(state.mySide);
+    for(let j=0;j<2;j++){
+      await tween(300, k=>{
+        for(const a of alive) a.group.position.y = a.home.y + Math.sin(k*Math.PI)*0.8;
+      });
+    }
+  } else {
+    sndLose();
+    showBanner('LOSE...', 1400);
+  }
+  await sleep(900);
+
+  const isPvp = state.mode==='pvp';
+  if(isPvp) cleanupPvp();
+
+  // 勝敗問わず1プレイ1枚ドロップ
+  const reward = rollReward();
+  const isNew = !state.owned.some(o=>o.card.id===reward.id);
+  state.owned.push({ uid:++uidSeq, card:reward });
+  if(win && !isPvp) state.wave++;
+
+  $('#result-title').textContent = win ? 'WIN！！' : 'LOSE...';
+  $('#result-title').className = win ? 'win' : 'lose';
+  $('#result-msg').textContent = isPvp
+    ? (win ? `合言葉マッチに勝利！ ${note||''}` : '合言葉マッチで敗北… リベンジだ！')
+    : (win ? `WAVE ${state.wave-1} クリア！ 次は WAVE ${state.wave}！` : 'やられてしまった… 新しいカードでリベンジだ！');
+  const rc = $('#reward-card');
+  rc.style.animation = 'none';
+  void rc.offsetWidth;
+  rc.style.animation = '';
+  rc.innerHTML = `
+    <div class="glyph g-${reward.shape}" style="background:${hexCss(reward.color)};border-color:${hexCss(reward.color)}"></div>
+    <div class="rc-name">${reward.name}</div>
+    <div class="rc-rare">${'★'.repeat(reward.rare)}</div>
+    <div class="rc-stats">HP ${reward.hp} ／ 攻撃 ${reward.atk} ／ 速さ ${reward.spd}<br>Ⓐ ${reward.skills[0].name}<br>Ⓑ ${reward.skills[1].name}</div>
+    <div class="rc-new">${isNew ? '✨NEW！ 新カード獲得！' : 'カードを獲得！(2枚目以降)'}</div>`;
+  showScreen('result');
+}
+$('#next-btn').addEventListener('click', ()=>{ sndSelect(); state.mode='pve'; renderSelect(); });
+
+/* ---------------- 起動 ---------------- */
+renderSelect();
+onResize();
+</script>
+</body>
+</html>
