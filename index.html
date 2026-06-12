@@ -78,6 +78,7 @@
   .popup.dmg-ally { color:#ff6a6a; }
   .popup.dmg-enemy { color:#ffe96a; }
   .popup.big { font-size:30px; color:#ff9a2e; }
+  .popup.miss { color:#b8c4d8; font-size:17px; }
   .popup.gauge { color:#7df0ff; font-size:18px; }
   @keyframes popfloat { 0%{opacity:0;transform:translate(-50%,-30%) scale(.5);} 15%{opacity:1;transform:translate(-50%,-60%) scale(1.25);} 30%{transform:translate(-50%,-70%) scale(1);} 100%{opacity:0;transform:translate(-50%,-150%) scale(1);} }
   #flash { position:absolute; inset:0; pointer-events:none; opacity:0; background:#fff; }
@@ -174,6 +175,7 @@
   @keyframes shinesweep { 0%{left:-90%;} 55%{left:140%;} 100%{left:140%;} }
   .z-tile.seen-only { opacity:.62; }
   .t-elem { font-size:9px; font-weight:700; }
+  .t-trait { font-size:8.5px; color:#9ad6a0; }
   .t-evo { font-size:8.5px; color:#ff7df0; font-weight:900; margin-top:2px; animation:evopulse .6s infinite alternate; }
   @keyframes evopulse { from{opacity:.6;} to{opacity:1;} }
   .evo-note { font-size:8px; color:#776fa8; margin-top:2px; }
@@ -248,7 +250,7 @@
       <button id="match-cancel" class="mini-btn">やめる</button>
       <div id="match-status"></div>
     </div>
-    <div class="howto">カード3枚で出撃！ 属性の相性と「合体技」、ゲージMAXの「超必殺技」をつかいこなせ！<br>⚡突撃は<b>リアルタイムじゃんけん</b>でゲージ強奪(1バトル1回)。10戦ごとにボス、たおすと出撃メンバーがレベルアップ！<br>30戦でステージクリア！ まけても チェックポイントから さいかいできるぞ。Lvがあがったら図鑑で<b>✨進化</b>！</div>
+    <div class="howto">カード3枚で出撃！ 属性の相性と「合体技」、ゲージMAXの「超必殺技」をつかいこなせ！<br>⚡突撃は<b>リアルタイムじゃんけん</b>でゲージ強奪(1バトル1回)。10戦ごとにボス(キラ率UP)！ Lvアップは同じカードをゲットした時だけ！<br>30戦でステージクリア！ まけてもチェックポイントからさいかい。図鑑で<b>✨進化</b>、とくていの3体で<b>⚡三体合体</b>(例:ヴォルクドラコ＋マグマロン＋ヴァルタイガ)！</div>
   </div>
 
   <div id="screen-zukan" class="screen hidden">
@@ -425,10 +427,59 @@ function instCard(id, lv){
   lv = Math.max(1, Math.min(MAX_LV, lv|0 || 1));
   return {
     ...c, lv,
-    hp:  Math.round(c.hp  * (1 + 0.07*(lv-1))),
+    hp:  Math.round(c.hp * 1.3 * (1 + 0.07*(lv-1))),
     atk: Math.round(c.atk * (1 + 0.05*(lv-1))),
     spd: c.spd + Math.floor((lv-1)/3),
+    trait: CARD_TRAITS[c.id] || null,
   };
+}
+
+/* ---------------- 特性 (パッシブ能力) ---------------- */
+const TRAITS = {
+  hard:  { name:'かたいからだ',   desc:'うけるダメージを10%カット' },
+  power: { name:'ちからじまん',   desc:'あたえるダメージ+10%' },
+  swift: { name:'しゅんそく',     desc:'すばやさ+15%' },
+  sniper:{ name:'しんがん',       desc:'こうげきがぜったいに外れない' },
+  mirage:{ name:'まぼろし',       desc:'敵のこうげきを追加で10%かわす' },
+  regen: { name:'さいせい',       desc:'ターン終了時にHPが5%回復' },
+  rage:  { name:'とうこん',       desc:'HP30%以下でこうげき+25%' },
+  soul:  { name:'ソウルチャージ', desc:'被ダメージ時のゲージ上昇1.5倍' },
+  guts:  { name:'くいしばり',     desc:'1バトルに1回、HP1でたえる' },
+};
+const CARD_TRAITS = {
+  1:'guts', 2:'hard', 3:'mirage', 4:'regen', 5:'power', 6:'soul', 7:'hard',
+  8:'mirage', 9:'swift', 10:'hard', 11:'regen', 12:'mirage', 13:'hard', 14:'swift',
+  15:'power', 16:'swift', 17:'mirage', 18:'regen', 19:'power', 20:'swift', 21:'rage',
+  22:'swift', 23:'sniper', 24:'guts', 25:'hard', 26:'soul', 27:'hard', 28:'power',
+  29:'regen', 30:'hard', 31:'sniper', 32:'soul', 33:'power', 34:'rage', 35:'swift',
+  36:'sniper', 37:'hard', 38:'regen', 39:'regen', 40:'sniper', 41:'hard', 42:'regen',
+  43:'mirage', 44:'rage', 45:'swift', 46:'guts', 47:'regen', 48:'soul', 49:'rage', 50:'regen',
+};
+
+/* ---------------- 三体合体 (とくていの3体で出撃すると巨大モンスターに！) ---------------- */
+const TRIO_FUSIONS = [
+  { ids:[15,21,34], name:'イグナロス',   shape:'cone',       color:0xff3300, el:'fire',    hp:1500, atk:56, spd:12, trait:'rage',
+    skills:[S('メガロフレイム','fire',1.0,'all'), S('ギガクロー','slash',1.5)] },
+  { ids:[7,22,37],  name:'グラキエロス', shape:'cube',       color:0x88ddff, el:'ice',     hp:1700, atk:50, spd:9,  trait:'hard',
+    skills:[S('アイスエイジ','ice',1.0,'all'), S('グレイシャプレス','phys',1.5)] },
+  { ids:[23,26,45], name:'トニトルス',   shape:'octahedron', color:0xffe14d, el:'thunder', hp:1350, atk:58, spd:15, trait:'sniper',
+    skills:[S('ライトニングノヴァ','thunder',1.0,'all'), S('ボルトインパクト','thunder',1.5,'one',{k:'par',ch:0.3})] },
+  { ids:[29,42,50], name:'ルクスセラフ', shape:'torus',      color:0xfff0aa, el:'holy',    hp:1450, atk:50, spd:12, trait:'regen',
+    skills:[S('セイントノヴァ','holy',0.95,'all'), S('グランドプレア','heal',5.0,'allies')] },
+  { ids:[19,32,46], name:'ノクスレギア', shape:'cylinder',   color:0x7733cc, el:'dark',    hp:1550, atk:54, spd:11, trait:'soul',
+    skills:[S('カオスゲート','dark',1.0,'all'), S('レギアスラッシュ','slash',1.5)] },
+];
+function findTrio(ids){
+  if(!Array.isArray(ids) || ids.length!==3) return null;
+  const key = ids.map(Number).slice().sort((a,b)=>a-b).join(',');
+  return TRIO_FUSIONS.find(t=>t.ids.slice().sort((a,b)=>a-b).join(',')===key) || null;
+}
+function instTrio(t, lv){
+  lv = Math.max(1, Math.min(MAX_LV, lv|0 || 1));
+  return { ...t, id:0, rare:5, lv,
+    hp:  Math.round(t.hp  * (1 + 0.07*(lv-1))),
+    atk: Math.round(t.atk * (1 + 0.05*(lv-1))),
+    spd: t.spd + Math.floor((lv-1)/3) };
 }
 
 /* ---------------- 敵モンスター (オリジナル) ---------------- */
@@ -561,7 +612,7 @@ function saveGame(){
   try{
     localStorage.setItem(SAVE_KEY_OF(), JSON.stringify({
       v:3, owned:state.owned, stage:state.stage, stageBattle:state.stageBattle,
-      streak:state.streak, allClear:state.allClear, dex:[...state.dex],
+      streak:state.streak, allClear:state.allClear, dex:[...state.dex], lvr:true,
     }));
   }catch(e){}
 }
@@ -577,6 +628,7 @@ function loadGame(){
         const id = +k, lv = Math.max(1, Math.min(MAX_LV, d.owned[k]|0));
         if(CARD_POOL.some(c=>c.id===id)) state.owned[id] = lv;
       }
+      if(!d.lvr){ for(const k of Object.keys(state.owned)) state.owned[k] = 1; } // 全カードLvリセット(初回のみ)
       state.stage = Math.max(1, Math.min(STAGE_MAX, d.stage|0 || 1));
       state.stageBattle = Math.max(1, Math.min(STAGE_LEN, d.stageBattle|0 || 1));
       state.streak = Math.max(0, d.streak|0);
@@ -663,7 +715,7 @@ function readSpell(sp){
   return true;
 }
 function resetGame(){
-  try{ localStorage.removeItem(SAVE_KEY); }catch(e){}
+  try{ localStorage.removeItem(SAVE_KEY_OF()); localStorage.removeItem(SAVE_KEY_LEGACY); }catch(e){}
   location.reload();
 }
 
@@ -728,8 +780,14 @@ function decayMods(){
     state.mods[side] = state.mods[side].filter(md=>md.turns>0);
   }
 }
-function effAtk(u){ return Math.max(1, Math.round(u.atk * modMult(u.side,'atk'))); }
-function effSpd(u){ return u.spd * modMult(u.side,'spd'); }
+function traitOf(u){ return (u.data && u.data.trait) || null; }
+function effAtk(u){
+  let m = modMult(u.side,'atk');
+  if(traitOf(u)==='power') m *= 1.10;
+  if(traitOf(u)==='rage' && u.hp <= u.maxHp*0.3) m *= 1.25;
+  return Math.max(1, Math.round(u.atk * m));
+}
+function effSpd(u){ return u.spd * modMult(u.side,'spd') * (traitOf(u)==='swift' ? 1.15 : 1); }
 
 /* ---------------- サウンド ---------------- */
 let actx = null;
@@ -915,7 +973,7 @@ function createUnit(data, side, idx, opts){
   return {
     data, side, isAlly, idx, group, body, home, baseRotY, scl,
     hp:data.hp, maxHp:data.hp, atk:data.atk, spd:data.spd,
-    st:null, stT:0,
+    st:null, stT:0, gutsUsed:false,
     alive:true, busy:false, boss:!!opts.boss, bobOff:Math.random()*6, label
   };
 }
@@ -1038,6 +1096,7 @@ function tileHtml(c, lv){
     <div class="t-name">${c.name}</div>
     <div class="t-rare">${'★'.repeat(c.rare)}</div>
     <div class="t-elem" style="color:${ELEMS[c.el].color}">${ELEMS[c.el].jp}属性</div>
+    <div class="t-trait">特性:${TRAITS[CARD_TRAITS[c.id]].name}</div>
     <div class="t-stats">HP${instCard(c.id,lv).hp} 攻${instCard(c.id,lv).atk} 速${instCard(c.id,lv).spd}<br>A:${c.skills[0].name}<br>B:${c.skills[1].name}</div>`;
 }
 function renderSelect(){
@@ -1090,6 +1149,8 @@ function updateModeBtns(){
   const ok = state.picked.length===3;
   $('#deploy-btn').disabled = !ok;
   $('#match-btn').disabled = !ok;
+  const trio = ok ? findTrio(state.picked) : null;
+  $('#deploy-btn').innerHTML = trio ? `⚡三体合体出撃！<br>『${trio.name}』` : 'ひとりで出撃';
 }
 $('#deploy-btn').addEventListener('click', ()=>startBattle('pve'));
 $('#match-btn').addEventListener('click', ()=>{
@@ -1113,6 +1174,7 @@ function renderZukan(){
         <div class="glyph g-${c.shape}" style="background:${hexCss(c.color)};border-color:${hexCss(c.color)}"></div>
         <div class="t-name">No.${c.id} ${c.name}</div>
         <div class="t-rare">${'★'.repeat(c.rare)}${lv ? ' Lv'+lv : ' <span style="color:#99a">未ゲット</span>'}</div>
+        <div class="t-trait">特性:${TRAITS[CARD_TRAITS[c.id]].name}（${TRAITS[CARD_TRAITS[c.id]].desc}）</div>
         <div class="t-stats">HP${instCard(c.id,lv).hp} 攻${instCard(c.id,lv).atk} 速${instCard(c.id,lv).spd}<br>A:${c.skills[0].name}<br>B:${c.skills[1].name}</div>`;
       if(lv){
         tile.innerHTML += (ev ? `<div class="evo-note">Lv${ev.lv}で → ${state.dex.has(ev.to) ? cardById(ev.to).name : '？？？'}</div>` : '');
@@ -1174,7 +1236,7 @@ function startMatching(){
   pvp.oppRaidHands = {};
   pvp.pickedIds = [...state.picked];
   matchStatus('せつぞく中…');
-  const hostId = 'abr3dv2-' + hashWord(word);
+  const hostId = 'abr3dv4-' + hashWord(word);
   const p = new Peer(hostId);
   pvp.peer = p;
   p.on('open', ()=>{
@@ -1223,8 +1285,8 @@ function bindConn(conn){
     if(pvp.cancelled){ try{conn.close();}catch(e){} return; }
     pvp.connected = true;
     matchStatus('マッチ成立！ バトル準備中…');
-    const party = pvp.pickedIds.map(id => ({ id, lv: state.owned[id]||1 }));
-    conn.send({ t:'hello', v:3, party });
+    const party = pvp.pickedIds.map(id => ({ id, lv: 1 })); // PvPはLv1統一
+    conn.send({ t:'hello', v:4, party });
   });
   conn.on('data', handleMsg);
   conn.on('close', onPvpClosed);
@@ -1233,7 +1295,7 @@ function bindConn(conn){
 function handleMsg(m){
   if(!m || typeof m!=='object') return;
   if(m.t==='hello'){
-    if(m.v!==3){ matchStatus('相手のゲームのバージョンが違うみたい…同じURLの最新版を使ってね'); return; }
+    if(m.v!==4){ matchStatus('相手のゲームのバージョンが違うみたい…同じURLの最新版を使ってね'); return; }
     if(Array.isArray(m.party) && m.party.length===3){
       pvp.oppParty = m.party.map(e=>({ id:cardById(e&&e.id).id, lv:Math.max(1,Math.min(MAX_LV,(e&&e.lv)|0||1)) }));
       if(pvp.isHost){
@@ -1276,11 +1338,16 @@ function onPvpClosed(){
   }
 }
 /* ---------------- 難易度 (ステージ×進行×連勝) ---------------- */
+function partyLvAvg(){
+  const ids = (state.picked && state.picked.length===3) ? state.picked : Object.keys(state.owned).map(Number);
+  if(!ids.length) return 1;
+  return ids.reduce((a,id)=>a+(state.owned[id]||1),0) / ids.length;
+}
 function diffFactors(){
-  // シミュレーション(約10万戦)で調整: 各ステージボス勝率 S1=89 S2=72 S3=98 S4=79 S5=35%
-  const base = [1, 1.4, 1.8, 2.15, 2.45][state.stage-1];
-  const hpF = base * (1 + (state.stageBattle-1)*0.010) * (1 + Math.min(state.streak,30)*0.002);
-  const atkF = 1 + (hpF-1)*0.45;
+  const base = [1.25, 1.75, 2.3, 2.75, 3.15][state.stage-1];
+  const lvF = 1 + (partyLvAvg()-1)*0.085;  // プレイヤーのLvが高いほど敵も強くなる
+  const hpF = base * lvF * (1 + (state.stageBattle-1)*0.012) * (1 + Math.min(state.streak,40)*0.004);
+  const atkF = 1 + (hpF-1)*0.50;
   return { hpF, atkF };
 }
 
@@ -1299,12 +1366,27 @@ function startBattle(mode){
   state.bossBattle = false;
 
   const pickedIds = (mode==='pvp') ? pvp.pickedIds : state.picked;
-  state.units[state.mySide] = pickedIds.map((id,i)=>
-    createUnit(instCard(id, state.owned[id]||1), state.mySide, i)
-  );
+  const lvOf = id => (mode==='pvp') ? 1 : (state.owned[id]||1); // PvPはLv1統一
+  const myTrio = findTrio(pickedIds);
+  let trioBanner = null;
+  if(myTrio){
+    const lv = (mode==='pvp') ? 1 : Math.max(...pickedIds.map(lvOf));
+    state.units[state.mySide] = [ createUnit(instTrio(myTrio, lv), state.mySide, 1, { scale:1.6 }) ];
+    trioBanner = myTrio.name;
+  } else {
+    state.units[state.mySide] = pickedIds.map((id,i)=>
+      createUnit(instCard(id, lvOf(id)), state.mySide, i)
+    );
+  }
 
   if(mode==='pvp'){
-    state.units[oppS] = pvp.oppParty.map((e,i)=>createUnit(instCard(e.id, e.lv), oppS, i));
+    const oppIds = pvp.oppParty.map(e=>e.id);
+    const oppTrio = findTrio(oppIds);
+    if(oppTrio){
+      state.units[oppS] = [ createUnit(instTrio(oppTrio, 1), oppS, 1, { scale:1.6 }) ];
+    } else {
+      state.units[oppS] = oppIds.map((id,i)=>createUnit(instCard(id, 1), oppS, i));
+    }
   } else {
     const { hpF, atkF } = diffFactors();
     state.bossBattle = (state.stageBattle % 10 === 0);
@@ -1349,6 +1431,13 @@ function startBattle(mode){
     mode==='pvp' ? '⚔ 合言葉マッチ成立！ バトルスタート！ ⚔'
     : state.bossBattle ? `👑 ボスバトル！！ ${STAGE_BOSSES[state.stage-1].name}出現！ 👑`
     : `ステージ${state.stage} 第${state.stageBattle}戦  スタート！`, 1500);
+  if(trioBanner){
+    const tu = myUnits()[0];
+    burst(tu.group.position.clone(), 0xffd95e, 40, 3.5, 1.4);
+    flashScreen('#ffd95e', 400, 0.5);
+    sndFusion();
+    setTimeout(()=>showBanner(`⚡三体合体！『${trioBanner}』降臨！！⚡`, 2000, 'fusion'), 1000);
+  }
   startSelection();
 }
 
@@ -1362,6 +1451,7 @@ function startSelection(){
   updateOppGaugeUI();
   const row = $('#cmd-row');
   row.innerHTML = '';
+  row.style.gridTemplateColumns = `repeat(${Math.max(1,myUnits().length)},1fr)`;
   myUnits().forEach((u,i)=>{
     const card = document.createElement('div');
     card.className = 'cmd-card' + (u.alive?'':' dead');
@@ -1552,14 +1642,19 @@ function updateStatusUI(u){
   if(el) el.innerHTML = u.st ? `<span style="color:${STATUS[u.st].color}">●${STATUS[u.st].jp}</span>` : '';
 }
 async function applyDamage(target, dmg, attacker, popCls, eff, st){
-  const real = Math.max(1, Math.round(dmg * modMult(target.side,'def')));
+  let real = Math.max(1, Math.round(dmg * modMult(target.side,'def')));
+  if(traitOf(target)==='hard') real = Math.max(1, Math.round(real*0.9));
   target.hp = Math.max(0, target.hp - real);
+  if(target.hp<=0 && traitOf(target)==='guts' && !target.gutsUsed){
+    target.gutsUsed = true; target.hp = 1;
+    showPopup(target.group.position.clone().add(new THREE.Vector3(0,1.5*target.scl,0)), 'くいしばった！', 'st-pop');
+  }
   showPopup(target.group.position.clone().add(new THREE.Vector3(0,0.9*target.scl,0)), real, popCls||(target.isAlly?'dmg-ally':'dmg-enemy'));
   if(eff && eff > 1)      showPopup(target.group.position.clone().add(new THREE.Vector3(0,1.7*target.scl,0)), 'こうかバツグン！', 'eff-up');
   else if(eff && eff < 1) showPopup(target.group.position.clone().add(new THREE.Vector3(0,1.7*target.scl,0)), 'いまひとつ…', 'eff-dn');
   flashBody(target);
   updateHpUI(target);
-  addGaugeFor(target.side, 12);
+  addGaugeFor(target.side, traitOf(target)==='soul' ? 18 : 12);
   if(attacker) addGaugeFor(attacker.side, 6);
   if(target.hp<=0 && target.alive){ await killUnit(target); return; }
   if(target.st==='slp' && real>0){
@@ -1586,7 +1681,7 @@ function updateHpUI(u){
   bar.style.width = p+'%';
   bar.className = 'ul-hp' + (p<=25?' crit':p<=50?' low':'');
   if(u.isAlly){
-    const c = $('#cmd-row').children[u.idx];
+    const c = $('#cmd-row').children[myUnits().indexOf(u)];
     if(c){ const b = c.querySelector('.cmd-hp'); if(b) b.style.width = p+'%'; }
   }
 }
@@ -1616,12 +1711,17 @@ async function meleeAttack(u, plans, skill){
     u.group.position.y = from.y + Math.sin(k*Math.PI)*0.9;
     u.group.rotation.y += 0.45;
   });
-  sndHit();
-  shake(0.18);
-  flashScreen('#fff', 110, 0.3);
-  burst(p0.t.group.position.clone(), 0xffffff, 16, 3.2);
-  burst(p0.t.group.position.clone(), parseInt(ELEMS[skill.elem].color.slice(1),16), 14, 2.6);
-  await applyDamage(p0.t, p0.dmg, u, null, p0.eff, p0.st);
+  if(p0.miss){
+    snd(330,0.12,'triangle',0.09,-150);
+    showPopup(p0.t.group.position.clone().add(new THREE.Vector3(0,1.0*p0.t.scl,0)), 'MISS!', 'miss');
+  } else {
+    sndHit();
+    shake(0.18);
+    flashScreen('#fff', 110, 0.3);
+    burst(p0.t.group.position.clone(), 0xffffff, 16, 3.2);
+    burst(p0.t.group.position.clone(), parseInt(ELEMS[skill.elem].color.slice(1),16), 14, 2.6);
+    await applyDamage(p0.t, p0.dmg, u, null, p0.eff, p0.st);
+  }
   await tween(260, k=>{ u.group.position.lerpVectors(to, from, easeOut(k)); });
   u.group.position.copy(from);
   u.group.rotation.y = u.baseRotY;
@@ -1650,10 +1750,15 @@ async function rangedAttack(u, plans, skill){
       m.scale.setScalar(1+Math.sin(k*Math.PI)*0.7);
     });
     scene.remove(m);
-    sndHit();
-    shake(0.14);
-    burst(to, col, 20, 3.0);
-    await applyDamage(p.t, p.dmg, u, null, p.eff, p.st);
+    if(p.miss){
+      snd(330,0.12,'triangle',0.09,-150);
+      showPopup(p.t.group.position.clone().add(new THREE.Vector3(0,1.0*p.t.scl,0)), 'MISS!', 'miss');
+    } else {
+      sndHit();
+      shake(0.14);
+      burst(to, col, 20, 3.0);
+      await applyDamage(p.t, p.dmg, u, null, p.eff, p.st);
+    }
   }));
   u.busy = false;
 }
@@ -1691,8 +1796,10 @@ async function performSkill(u, skill){
   const atk = effAtk(u);
   const plans = targets.map(t=>{
     const eff = effOf(skill.elem, t.data.el);
-    return { t, eff, dmg:calcDmg(atk, skill.mult*eff),
-      st:(skill.st && rngFn() < skill.st.ch) ? skill.st.k : null };
+    const missCh = (traitOf(u)==='sniper') ? 0 : 0.10 + (traitOf(t)==='mirage' ? 0.10 : 0);
+    const miss = rngFn() < missCh;
+    return { t, eff, miss, dmg:calcDmg(atk, skill.mult*eff),
+      st:(!miss && skill.st && rngFn() < skill.st.ch) ? skill.st.k : null };
   });
   if((skill.elem==='phys'||skill.elem==='slash') && skill.target!=='all') await meleeAttack(u, plans, skill);
   else await rangedAttack(u, plans, skill);
@@ -2087,6 +2194,15 @@ async function runTurnWith(plans){
   const end = checkEnd();
   if(end){ await endBattle(end==='win'); return; }
   await tickStatuses();
+  // 特性「さいせい」: ターン終了時HP5%回復
+  for(const side of ['A','B']){
+    for(const u of state.units[side]){
+      if(u.alive && traitOf(u)==='regen' && u.hp < u.maxHp){
+        burst(u.group.position.clone(), 0x6dffa0, 8, 1.2, 0.8, -2);
+        applyHeal(u, Math.max(1, Math.round(u.maxHp*0.05)));
+      }
+    }
+  }
   if(state.ended) return;
   const end2 = checkEnd();
   if(end2){ await endBattle(end2==='win'); return; }
@@ -2267,15 +2383,6 @@ async function endBattle(win, note){
       } else {
         state.stageBattle++;
         progMsg = wasBoss ? `👑 ボス撃破！ 次は第${state.stageBattle}戦！` : `次は第${state.stageBattle}戦！ (連勝${state.streak})`;
-      }
-      if(wasBoss){
-        // ボス撃破ボーナス: 出撃メンバー全員レベルアップ！
-        const ups = [];
-        for(const id of state.picked){
-          const cur2 = state.owned[id];
-          if(cur2 && cur2 < MAX_LV){ state.owned[id] = cur2+1; ups.push(cardById(id).name); }
-        }
-        if(ups.length) progMsg += `\n⬆ ボスボーナス！ 出撃メンバーがレベルアップ！`;
       }
     } else {
       // チェックポイント制: 1戦/11戦/21戦目から再開(ステージ最初からやり直しは廃止)
