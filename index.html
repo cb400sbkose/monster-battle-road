@@ -22,6 +22,19 @@
   .sel-sub { text-align:center; font-size:11px; color:#bba; margin-bottom:4px; }
   #info-row { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:6px; }
   #wave-info { font-size:12px; color:#8fe3ff; font-weight:700; }
+  #sort-row { display:flex; align-items:center; justify-content:center; gap:4px; margin-bottom:5px; }
+  .sort-lbl { font-size:9px; color:#99a; }
+  .sort-btn { padding:3px 8px; border:1px solid #4a3f7a; border-radius:7px; background:#241a4a; color:#bbc; font-size:10px; font-weight:700; cursor:pointer; }
+  .sort-btn.sel { background:linear-gradient(180deg,#ffe9a0,#ffc44e); color:#2a1a00; border-color:#ffe9a0; }
+  #fusion-btn { padding:5px 10px; border:none; border-radius:8px; font-size:11px; font-weight:800; color:#2a003a; background:linear-gradient(180deg,#ffb0e0,#ff7df0); cursor:pointer; }
+  #fusion-scroll { flex:1; overflow-y:auto; padding:4px 2px 12px; }
+  .fl-sec { font-size:13px; font-weight:900; color:#ffd95e; margin:10px 0 6px; text-shadow:0 0 8px #ff8c00; }
+  .fl-item { background:linear-gradient(160deg,#241a4a,#141031); border:1px solid #4a3f7a; border-radius:9px; padding:7px 9px; margin-bottom:6px; font-size:11px; line-height:1.55; }
+  .fl-name { font-weight:900; font-size:12.5px; color:#ff7df0; }
+  .fl-have { color:#6dffa0; font-weight:700; }
+  .fl-miss2 { color:#778; }
+  .fl-recipe { color:#bcd8ff; }
+  #fusionlist-close { margin-top:6px; padding:12px; border:none; border-radius:10px; font-size:14px; font-weight:900; color:#3a2400; background:linear-gradient(180deg,#ffe27a,#ffae2e); cursor:pointer; }
   #zukan-btn { padding:5px 10px; border:none; border-radius:8px; font-size:11px; font-weight:800; color:#2a1a00; background:linear-gradient(180deg,#ffe9a0,#ffc44e); cursor:pointer; }
   #card-grid { flex:1; overflow-y:auto; display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding:4px 2px 12px; align-content:start; }
   .card-tile { position:relative; background:linear-gradient(160deg,#241a4a,#141031); border:2px solid #4a3f7a; border-radius:10px; padding:8px 6px 6px; text-align:center; cursor:pointer; transition:transform .1s; }
@@ -246,7 +259,8 @@
   <div id="screen-select" class="screen">
     <div class="sel-title">⚔ アストラルバトルロード 3D ⚔</div>
     <div class="sel-sub">─ でんせつの50体をあつめ、星の頂をめざせ ─</div>
-    <div id="info-row"><span id="wave-info"></span><button id="save-btn">💾</button><button id="bgm-btn">🔊</button><button id="zukan-btn">📖 図鑑</button></div>
+    <div id="info-row"><span id="wave-info"></span><button id="save-btn">💾</button><button id="bgm-btn">🔊</button><button id="zukan-btn">📖 図鑑</button><button id="fusion-btn">⚡合体</button></div>
+    <div id="sort-row"><span class="sort-lbl">ならべかえ</span><button class="sort-btn sel" data-s="rare">レア</button><button class="sort-btn" data-s="el">属性</button><button class="sort-btn" data-s="shape">種族</button><button class="sort-btn" data-s="lv">Lv</button><button class="sort-btn" data-s="id">番号</button></div>
     <div id="card-grid"></div>
     <div id="mode-row">
       <button id="deploy-btn" class="big-btn" disabled>⚔ ぼうけんに出る！</button>
@@ -260,6 +274,12 @@
       <div id="match-status"></div>
     </div>
     <div class="howto">カード3枚で出撃！ 属性の相性と「合体技」、ゲージMAXの「超必殺技」をつかいこなせ！<br>⚡突撃は<b>リアルタイムじゃんけん</b>でゲージ強奪(1バトル1回)。10戦ごとにボス(キラ率UP)！ Lvアップは同じカードをゲットした時だけ！<br>30戦でステージクリア！ まけてもチェックポイントからさいかい。図鑑で<b>✨進化</b>、とくていの3体で<b>⚡三体合体</b>(全8種・例:ヴォルクドラコ＋マグマロン＋ヴァルタイガ)！ 🛡ガードで読み合い、ステージは無限につづく！</div>
+  </div>
+
+  <div id="screen-fusionlist" class="screen hidden" style="background:radial-gradient(circle at 50% 0%, #3a1a4a 0%, #0d0822 70%); padding:12px;">
+    <div class="sel-title">⚡ 合体リスト ⚡</div>
+    <div id="fusion-scroll"></div>
+    <button id="fusionlist-close">とじる</button>
   </div>
 
   <div id="screen-zukan" class="screen hidden">
@@ -493,7 +513,7 @@ function instCard(id, lv){
   lv = Math.max(1, Math.min(MAX_LV, lv|0 || 1));
   return {
     ...c, lv,
-    hp:  Math.round(c.hp * 2.6 * (1 + 0.07*(lv-1))),
+    hp:  Math.round(c.hp * 1.8 * (1 + 0.07*(lv-1))),
     atk: Math.round(c.atk * (1 + 0.05*(lv-1))),
     spd: c.spd + Math.floor((lv-1)/3),
     trait: CARD_TRAITS[c.id] || null,
@@ -537,21 +557,21 @@ const CARD_TRAITS = {
 
 /* ---------------- 三体合体 (とくていの3体で出撃すると巨大モンスターに！) ---------------- */
 const TRIO_FUSIONS = [
-  { ids:[15,21,34], name:'イグナロス',   shape:'cone',       color:0xff3300, el:'fire',    hp:3000, atk:56, spd:12, trait:'rage',
+  { ids:[15,21,34], name:'イグナロス',   shape:'cone',       color:0xff3300, el:'fire',    hp:2100, atk:56, spd:12, trait:'rage',
     skills:[S('メガロフレイム','fire',1.0,'all'), S('ギガクロー','slash',1.5)] },
-  { ids:[7,22,37],  name:'グラキエロス', shape:'cube',       color:0x88ddff, el:'ice',     hp:3400, atk:50, spd:9,  trait:'hard',
+  { ids:[7,22,37],  name:'グラキエロス', shape:'cube',       color:0x88ddff, el:'ice',     hp:2350, atk:50, spd:9,  trait:'hard',
     skills:[S('アイスエイジ','ice',1.0,'all'), S('グレイシャプレス','phys',1.5)] },
-  { ids:[23,26,45], name:'トニトルス',   shape:'octahedron', color:0xffe14d, el:'thunder', hp:2700, atk:58, spd:15, trait:'sniper',
+  { ids:[23,26,45], name:'トニトルス',   shape:'octahedron', color:0xffe14d, el:'thunder', hp:1900, atk:58, spd:15, trait:'sniper',
     skills:[S('ライトニングノヴァ','thunder',1.0,'all'), S('ボルトインパクト','thunder',1.5,'one',{k:'par',ch:0.3})] },
-  { ids:[29,42,50], name:'ルクスセラフ', shape:'torus',      color:0xfff0aa, el:'holy',    hp:2900, atk:50, spd:12, trait:'regen',
-    skills:[S('セイントノヴァ','holy',0.95,'all'), S('グランドプレア','heal',9.0,'allies')] },
-  { ids:[19,32,46], name:'ノクスレギア', shape:'cylinder',   color:0x7733cc, el:'dark',    hp:3100, atk:54, spd:11, trait:'soul',
+  { ids:[29,42,50], name:'ルクスセラフ', shape:'torus',      color:0xfff0aa, el:'holy',    hp:2000, atk:50, spd:12, trait:'regen',
+    skills:[S('セイントノヴァ','holy',0.95,'all'), S('グランドプレア','heal',6.0,'allies')] },
+  { ids:[19,32,46], name:'ノクスレギア', shape:'cylinder',   color:0x7733cc, el:'dark',    hp:2150, atk:54, spd:11, trait:'soul',
     skills:[S('カオスゲート','dark',1.0,'all'), S('レギアスラッシュ','slash',1.5)] },
-  { ids:[65,77,89], name:'ヴァルカノドン', shape:'cube',     color:0xdd4411, el:'fire',    hp:3300, atk:54, spd:10, trait:'thorn',
+  { ids:[65,77,89], name:'ヴァルカノドン', shape:'cube',     color:0xdd4411, el:'fire',    hp:2300, atk:54, spd:10, trait:'thorn',
     skills:[S('マグマカタストロフ','fire',1.0,'all'), S('ドンプレス','phys',1.5)] },
-  { ids:[57,74,87], name:'シノビショウグン', shape:'cylinder', color:0x445566, el:'slash', hp:2800, atk:58, spd:15, trait:'first',
+  { ids:[57,74,87], name:'シノビショウグン', shape:'cylinder', color:0x445566, el:'slash', hp:1950, atk:58, spd:15, trait:'first',
     skills:[S('ぜんりょくむそうぎり','slash',1.5), S('かげぶんしんのまい','slash',1.0,'all')] },
-  { ids:[68,85,91], name:'ルナティックノヴァ', shape:'octahedron', color:0x8844cc, el:'dark', hp:3000, atk:56, spd:11, trait:'leech',
+  { ids:[68,85,91], name:'ルナティックノヴァ', shape:'octahedron', color:0x8844cc, el:'dark', hp:2100, atk:56, spd:11, trait:'leech',
     skills:[S('ナイトメアノヴァ','dark',1.0,'all'), S('ソウルイーター','dark',1.5,'one',{k:'psn',ch:0.3})] },
 ];
 function findTrio(ids){
@@ -624,11 +644,11 @@ const ULT = { name:'オーバーソウル・バースト', mult:2.6 };
 /* ---------------- SPカード (1バトル1回) ---------------- */
 const SP_CARDS = [
   { name:'ヴォイドキャノン',   desc:'相手全体に味方の合計攻撃力90%のダメージ', type:'attack', color:0xbb55ff },
-  { name:'エーテルライト',     desc:'味方全体のHPを35%回復する',               type:'heal',   color:0x6dffa0 },
+  { name:'エーテルライト',     desc:'味方全体のHPを25%回復する',               type:'heal',   color:0x6dffa0 },
   { name:'ウィークコード',     desc:'相手全体の攻撃力を30%ダウン (2ターン)',    type:'atkdown', color:0xff7777 },
   { name:'スロウフィールド',   desc:'相手全体の速度を40%ダウン (2ターン)',      type:'spddown', color:0x77aaff },
   { name:'イージスシェル',     desc:'味方が受けるダメージを40%カット (2ターン)', type:'guard',  color:0xffd95e },
-  { name:'チャージドライブ',   desc:'自分の必殺ゲージを40%チャージする',        type:'charge', color:0x7df0ff },
+  { name:'チャージドライブ',   desc:'自分の必殺ゲージを30%チャージする',        type:'charge', color:0x7df0ff },
 ];
 const HANDS = ['✊','✌️','✋'];
 
@@ -1185,7 +1205,7 @@ requestAnimationFrame(loop);
 
 /* ---------------- 画面遷移 ---------------- */
 function showScreen(name){
-  for(const s of ['select','battle','result','zukan']) $('#screen-'+s).classList.toggle('hidden', s!==name);
+  for(const s of ['select','battle','result','zukan','fusionlist']) $('#screen-'+s).classList.toggle('hidden', s!==name);
   if(name==='battle') onResize();
 }
 
@@ -1201,8 +1221,16 @@ function tileHtml(c, lv){
 }
 function renderSelect(){
   state.picked = [];
-  const ownedIds = Object.keys(state.owned).map(Number)
-    .sort((a,b)=> (cardById(b).rare - cardById(a).rare) || (a-b)); // レア順ソート
+  const ownedIds = Object.keys(state.owned).map(Number).sort((a,b)=>{
+    const ca = cardById(a), cb = cardById(b);
+    switch(sortMode){
+      case 'el':    return (EL_ORDER[ca.el]-EL_ORDER[cb.el]) || (cb.rare-ca.rare) || (a-b);
+      case 'shape': return (SHAPE_ORDER[ca.shape]-SHAPE_ORDER[cb.shape]) || (cb.rare-ca.rare) || (a-b);
+      case 'lv':    return ((state.owned[b]||1)-(state.owned[a]||1)) || (cb.rare-ca.rare) || (a-b);
+      case 'id':    return a-b;
+      default:      return (cb.rare-ca.rare) || (a-b);
+    }
+  });
   $('#wave-info').textContent =
     `ステージ${state.stage} ─ ${state.stageBattle}/${STAGE_LEN}戦目 ／ 連勝${state.streak}` +
     (state.allClear ? ' 🏆' : '');
@@ -1313,6 +1341,43 @@ function renderZukan(){
   showScreen('zukan');
 }
 $('#zukan-btn').addEventListener('click', ()=>{ sndSelect(); renderZukan(); });
+/* ---------------- 合体リスト ---------------- */
+function renderFusionList(){
+  const sc = $('#fusion-scroll');
+  let html = '<div class="fl-sec">⚡ 三体合体 ─ この3体をえらんで出撃！</div>';
+  for(const t of TRIO_FUSIONS){
+    const names = t.ids.map(id=>{
+      const c = cardById(id);
+      const have = !!state.owned[id];
+      const disp = (have || state.dex.has(id)) ? c.name : '？？？';
+      return `<span class="${have?'fl-have':'fl-miss2'}">${have?'✅':'⬜'}${disp}</span>`;
+    }).join(' ＋ ');
+    const ready = t.ids.every(id=>state.owned[id]);
+    html += `<div class="fl-item"><span class="fl-name">${t.name}</span> ${'★'.repeat(5)} [${ELEMS[t.el].jp}属性・特性:${TRAITS[t.trait].name}]${ready?' <span class="fl-have">⚡合体可能！</span>':''}<br>${names}<br><span class="fl-recipe">HP${t.hp} 攻${t.atk} 速${t.spd} ／ Ⓐ${t.skills[0].name} Ⓑ${t.skills[1].name}</span></div>`;
+  }
+  html += '<div class="fl-sec">🤝 合体技レシピ ─ 同じターンに2体のワザの属性をそろえろ！</div>';
+  for(const r of RECIPES){
+    html += `<div class="fl-item"><span class="fl-name" style="color:${r.color}">${r.name}</span>${r.blessing?' (回復+攻撃)':''} ×${r.mult}<br><span class="fl-recipe">[${ELEMS[r.elems[0]].jp}] ＋ [${ELEMS[r.elems[1]].jp}]</span></div>`;
+  }
+  sc.innerHTML = html;
+  showScreen('fusionlist');
+}
+$('#fusion-btn').addEventListener('click', ()=>{ sndSelect(); renderFusionList(); });
+$('#fusionlist-close').addEventListener('click', ()=>{ sndSelect(); renderSelect(); });
+/* ---------------- 並べ替え ---------------- */
+let sortMode = 'rare';
+const EL_ORDER = { fire:0, ice:1, thunder:2, earth:3, slash:4, phys:5, dark:6, holy:7 };
+const SHAPE_ORDER = { sphere:0, cube:1, cylinder:2, cone:3, octahedron:4, torus:5 };
+document.querySelectorAll('.sort-btn').forEach(b=>b.addEventListener('click', ()=>{
+  sortMode = b.dataset.s;
+  document.querySelectorAll('.sort-btn').forEach(x=>x.classList.toggle('sel', x===b));
+  const keep = [...state.picked];
+  renderSelect();
+  state.picked = keep.filter(id=>state.owned[id]).slice(0,3);
+  refreshPickBadges();
+  updateModeBtns();
+  sndSelect();
+}));
 $('#zukan-close').addEventListener('click', ()=>{ sndSelect(); renderSelect(); });
 $('#data-reset').addEventListener('click', ()=>{
   if(confirm('セーブデータを全て消して最初からやり直しますか？')) resetGame();
@@ -1511,13 +1576,13 @@ function startBattle(mode){
       const bossBase = { ...bossBase0, hp:Math.round(bossBase0.hp*(1+0.6*loop)), atk:Math.round(bossBase0.atk*(1+0.3*loop)) };
       const boss = {
         ...bossBase,
-        hp:  Math.round(bossBase.hp * bs * hpF * 2),
+        hp:  Math.round(bossBase.hp * bs * hpF * 1.4),
         atk: Math.round(bossBase.atk * (0.8+0.2*bs) * atkF),
       };
       const mIdx = [Math.floor(Math.random()*ENEMY_POOL.length), Math.floor(Math.random()*ENEMY_POOL.length)];
       const minions = mIdx.map(j=>{
         const e = ENEMY_POOL[j];
-        return { ...e, hp:Math.round(e.hp*0.85*hpF*2), atk:Math.round(e.atk*0.85*atkF) };
+        return { ...e, hp:Math.round(e.hp*0.85*hpF*1.4), atk:Math.round(e.atk*0.85*atkF) };
       });
       state.units.B = [
         createUnit(minions[0], 'B', 0),
@@ -1528,7 +1593,7 @@ function startBattle(mode){
       const picks = [];
       while(picks.length<3) picks.push(ENEMY_POOL[Math.floor(Math.random()*ENEMY_POOL.length)]);
       state.units.B = picks.map((e,i)=>{
-        const d = { ...e, hp:Math.round(e.hp*hpF*2), atk:Math.round(e.atk*atkF) };
+        const d = { ...e, hp:Math.round(e.hp*hpF*1.4), atk:Math.round(e.atk*atkF) };
         return createUnit(d, 'B', i);
       });
     }
@@ -1595,7 +1660,7 @@ function startSelection(){
       const gb = document.createElement('button');
       gb.className = 'skill-btn guard-btn';
       gb.disabled = !u.alive;
-      gb.innerHTML = '🛡 ガード<br><span class="se">[被ダメ半減・ゲージ+15]</span>';
+      gb.innerHTML = '🛡 ガード<br><span class="se">[被ダメ半減・ゲージ+10]</span>';
       gb.addEventListener('click', ()=>{
         if(state.phase!=='select') return;
         state.mySel[i] = 2;
@@ -1789,8 +1854,8 @@ async function applyDamage(target, dmg, attacker, popCls, eff, st){
   else if(eff && eff < 1) showPopup(target.group.position.clone().add(new THREE.Vector3(0,1.7*target.scl,0)), 'いまひとつ…', 'eff-dn');
   flashBody(target);
   updateHpUI(target);
-  addGaugeFor(target.side, traitOf(target)==='soul' ? 14 : 9);
-  if(attacker) addGaugeFor(attacker.side, traitOf(attacker)==='tension' ? 10 : 5);
+  addGaugeFor(target.side, traitOf(target)==='soul' ? 9 : 6);
+  if(attacker) addGaugeFor(attacker.side, traitOf(attacker)==='tension' ? 6 : 3);
   if(attacker && attacker.alive && traitOf(target)==='thorn'){
     const ref = Math.max(1, Math.round(real*0.12));
     attacker.hp = Math.max(0, attacker.hp - ref);
@@ -1833,7 +1898,7 @@ function updateHpUI(u){
 }
 async function killUnit(u){
   u.alive = false; u.busy = true;
-  addGaugeFor(u.side, 25); // リベンジゲージ
+  addGaugeFor(u.side, 18); // リベンジゲージ
   snd(80,0.4,'sawtooth',0.12,-40);
   burst(u.group.position.clone(), u.data.color, u.boss?44:26, u.boss?4.5:3.5, u.boss?1.6:1.2);
   if(u.boss){ shake(0.6); flashScreen('#fff', 300, 0.5); }
@@ -1917,7 +1982,7 @@ async function healAction(u, skill){
   sndHeal();
   flashBody(u, 0x33ff66, 350);
   await tween(300, k=>{ u.group.position.y = u.home.y + Math.sin(k*Math.PI)*0.6; u.group.rotation.y += 0.2; });
-  const amt = Math.round(effAtk(u)*skill.mult*1.8);
+  const amt = Math.round(effAtk(u)*skill.mult*1.2);
   for(const a of aliveOf(u.side)){
     burst(a.group.position.clone().add(new THREE.Vector3(0,-0.3,0)), 0x6dffa0, 14, 1.4, 0.9, -2.5);
     applyHeal(a, amt);
@@ -1961,7 +2026,7 @@ async function guardAction(u){
   showBanner(`${bannerName(u)}は みをまもっている！`, 700);
   flashBody(u, 0x66aaff, 400);
   burst(u.group.position.clone(), 0x66aaff, 12, 1.4, 0.9, -1.5);
-  addGaugeFor(u.side, 15);
+  addGaugeFor(u.side, 10);
   await sleep(450);
 }
 async function aiAction(u){
@@ -1998,7 +2063,7 @@ async function spAction(side, idx){
       sndHeal();
       for(const a of aliveOf(side)){
         burst(a.group.position.clone(), 0x6dffa0, 18, 1.6, 1.0, -2.5);
-        applyHeal(a, Math.round(a.maxHp*0.35));
+        applyHeal(a, Math.round(a.maxHp*0.25));
       }
       await sleep(500);
       break;
@@ -2025,10 +2090,10 @@ async function spAction(side, idx){
       break;
     }
     case 'charge': {
-      addGaugeFor(side, 40);
+      addGaugeFor(side, 30);
       const z = mine ? 2.6 : -3.0;
       burst(new THREE.Vector3(0,1.2,z), sp.color, 30, 2.5, 1.2, -1);
-      showBanner('必殺ゲージ +40%！', 1200, 'sp');
+      showBanner('必殺ゲージ +30%！', 1200, 'sp');
       await sleep(700);
       break;
     }
@@ -2169,7 +2234,7 @@ async function fusionAttack(pair, recipe){
   if(recipe.blessing){
     flashScreen('#fff8d0', 400, 0.8);
     sndHeal();
-    const healAmt = Math.round(dmgBase*1.8);
+    const healAmt = Math.round(dmgBase*1.2);
     const dmgs = oppTargets.map(t=>calcDmg(dmgBase, recipe.mult * effOf(recipe.elems[0], t.data.el)));
     for(const a of aliveOf(side)){
       burst(a.group.position.clone(), 0xfff0aa, 22, 1.8, 1.1, -2.5);
@@ -2391,6 +2456,13 @@ function rollReward(){
   const cands = CARD_POOL.filter(c=>c.rare===rare);
   return cands[Math.floor(Math.random()*cands.length)];
 }
+function rollRewardBoss(){
+  // 👑ボス撃破ドロップ: ★1=10% ★2=30% ★3=35% ★4=18% ★5=7%
+  const r = Math.random();
+  const rare = r<0.10?1 : r<0.40?2 : r<0.75?3 : r<0.93?4 : 5;
+  const cands = CARD_POOL.filter(c=>c.rare===rare);
+  return cands[Math.floor(Math.random()*cands.length)];
+}
 function rollRewardKira(){
   // ✨キラドロップ: ★2=30% ★3=40% ★4=22% ★5=8%
   const r = Math.random();
@@ -2560,7 +2632,7 @@ async function endBattle(win, note){
 
   // ===== 二段階ガチャ: 何が出るか(キラ抽選) × ゲットできるか(捕獲) =====
   const isKira = Math.random() < ((win && wasBoss) ? 0.35 : 0.08);
-  const reward = isKira ? rollRewardKira() : rollReward();
+  const reward = isKira ? rollRewardKira() : ((win && wasBoss) ? rollRewardBoss() : rollReward());
   let capRate = [0, 0.95, 0.85, 0.70, 0.55, 0.40][reward.rare];
   if(!win) capRate *= 0.8;
   if(win && wasBoss) capRate = Math.min(0.98, capRate + 0.10);
