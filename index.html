@@ -256,6 +256,30 @@
   .kira-label { font-size:13px; font-weight:900; color:#ffe14d; text-shadow:0 0 10px #ff8c00,0 0 22px #ff3df0; animation:evopulse .35s infinite alternate; }
   #app.shaking { animation:appshake .45s ease-out; }
   @keyframes appshake { 0%,100%{transform:translate(0,0);} 15%{transform:translate(-7px,4px);} 30%{transform:translate(6px,-5px);} 45%{transform:translate(-5px,-3px);} 60%{transform:translate(4px,4px);} 75%{transform:translate(-3px,2px);} }
+  /* ===== ローグライト・ラン (フェーズ1) ===== */
+  #rogue-btn { width:100%; margin-top:8px; padding:12px 4px; border:none; border-radius:12px; font-size:15px; font-weight:900; letter-spacing:1px; color:#06243f; background:linear-gradient(180deg,#b6ff9e,#3ecf6e); box-shadow:0 4px 0 #1a7c3a,0 6px 14px #0009; cursor:pointer; }
+  #rogue-btn:active { transform:translateY(3px); box-shadow:none; }
+  #rogue-best-lbl { color:#9aff8a; margin-top:3px; font-size:10px; text-align:center; }
+  #rogue-overlay, #draft-overlay { position:absolute; inset:0; z-index:60; background:rgba(6,3,20,0.97); display:flex; flex-direction:column; padding:10px; }
+  #dmode-row .mini-btn { flex:1; background:#241a4a; color:#bbc; border:1px solid #4a3f7a; }
+  #dmode-row .mini-btn.dsel { background:linear-gradient(180deg,#aef4ff,#3ec8ff); color:#06243f; border-color:#cde6ff; }
+  .df-prev { font-size:10px; color:#ffb0e0; background:#2a1430; border:1px solid #5a3f6a; border-radius:8px; padding:5px 8px; margin:4px 0; line-height:1.5; }
+  .rg-enemies { display:flex; flex-wrap:wrap; gap:6px; margin:4px 0 8px; }
+  .rg-en { font-size:11px; background:#1c1440; border:1px solid #4a3f7a; border-radius:8px; padding:4px 8px; display:flex; align-items:center; gap:4px; }
+  .rg-en small { color:#8fe3ff; }
+  .rg-dot { width:9px; height:9px; border-radius:50%; display:inline-block; flex:none; }
+  .rg-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+  .rg-tile { position:relative; background:linear-gradient(160deg,#241a4a,#141031); border:2px solid #4a3f7a; border-radius:10px; padding:7px 6px; cursor:pointer; }
+  .rg-tile.sel { border-color:#9aff8a; box-shadow:0 0 10px #3ecf6e88; }
+  .rg-tile.faint { opacity:.42; filter:grayscale(1); cursor:not-allowed; }
+  .rg-tile .rg-badge { position:absolute; top:-7px; right:-5px; width:22px; height:22px; border-radius:50%; background:#9aff8a; color:#06243f; font-size:13px; font-weight:900; line-height:22px; text-align:center; box-shadow:0 1px 4px #000; }
+  .rg-tname { font-size:11px; font-weight:800; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .rg-thp { height:6px; background:#000a; border-radius:3px; overflow:hidden; margin:3px 0; }
+  .rg-thpf { height:100%; background:linear-gradient(90deg,#3dff7e,#b6ff52); }
+  .rg-tstat { font-size:9px; color:#aab; line-height:1.45; }
+  .rg-choice { border-color:#3ecf6e !important; }
+  #rogue-go { display:block; width:100%; margin-top:10px; padding:13px; border:none; border-radius:10px; font-size:16px; font-weight:900; color:#06243f; background:linear-gradient(180deg,#b6ff9e,#3ecf6e); box-shadow:0 3px 0 #1a7c3a; cursor:pointer; }
+  #rogue-go:disabled { filter:grayscale(1) brightness(.6); box-shadow:none; }
 </style>
 </head>
 <body>
@@ -271,7 +295,16 @@
       <button id="deploy-btn" class="big-btn" disabled>⚔ ぼうけんに出る！</button>
       <button id="match-btn" class="big-btn" disabled>合言葉マッチ</button>
     </div>
+    <button id="rogue-btn">🗺 ローグライト・ラン</button>
+    <div id="rogue-asc-row" class="hidden" style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:5px">
+      <span class="sort-lbl">しばり</span>
+      <button id="rasc-prev" class="sort-btn">◀</button>
+      <span id="rasc-lbl" style="font-size:11px;font-weight:800;color:#9aff8a;min-width:120px;text-align:center"></span>
+      <button id="rasc-next" class="sort-btn">▶</button>
+    </div>
+    <div id="rogue-best-lbl"></div>
     <div id="match-panel" class="hidden">
+      <div id="dmode-row" style="width:100%;display:flex;gap:6px"><button id="mode-single" class="mini-btn dsel">🎯 1本勝負(3体)</button><button id="mode-draft" class="mini-btn">⚔ ドラフトBO3(6体)</button></div>
       <div id="rule-row"><button id="rule-flat" class="mini-btn rsel">⚖ Lv1ルール</button><button id="rule-lv" class="mini-btn">💪 育成Lvルール</button></div>
       <input id="word-input" maxlength="12" placeholder="あいことば（友達と同じ言葉）">
       <button id="match-start" class="mini-btn">開始</button>
@@ -345,6 +378,16 @@
         <div id="spell-status" class="save-note"></div>
       </div>
     </div>
+  </div>
+
+  <div id="rogue-overlay" class="hidden">
+    <div class="dex-head">🗺 ローグライト・ラン <span id="rg-head-d" style="color:#9aff8a"></span><span style="flex:1"></span><button id="rogue-quit" style="padding:6px 12px;border:none;border-radius:8px;background:#4a3f7a;color:#fff;font-size:12px;font-weight:800;cursor:pointer">✕ やめる</button></div>
+    <div id="rogue-body" class="save-scroll"></div>
+  </div>
+
+  <div id="draft-overlay" class="hidden">
+    <div class="dex-head">⚔ ドラフトBO3 <span id="df-head" style="color:#aef4ff"></span><span style="flex:1"></span><button id="draft-quit" style="padding:6px 12px;border:none;border-radius:8px;background:#4a3f7a;color:#fff;font-size:12px;font-weight:800;cursor:pointer">✕ やめる</button></div>
+    <div id="draft-body" class="save-scroll"></div>
   </div>
 
   <div id="screen-result" class="screen hidden">
@@ -688,7 +731,11 @@ const pvp = {
   started:false, connected:false, closedHandled:false, cancelled:false, lostConn:false,
   oppRaidHands:{},
   rule:'flat',
+  // ドラフトBO3 (フェーズ3)
+  draft:false, draftPool:null, oppPool:null, gameIdx:0, wins:{me:0,opp:0},
+  mySel3:null, oppSel3:null, myPrev:null, oppPrev:null, gameField:null,
 };
+let draftPoolSel = null;  // 6体プールの選択(connect前に保持・cleanupPvpで消えない)
 
 /* ---------------- セーブ / ロード ---------------- */
 const SAVE_KEY_LEGACY = 'astral_battle_road_v2';
@@ -908,6 +955,7 @@ function effAtk(u){
 function effSpd(u){
   let m = (traitOf(u)==='swift' ? 1.15 : 1);
   if(traitOf(u)==='first' && state.turn===1) m *= 1.6;
+  if(u.isAlly && state.turn===1 && hasRelic('swift_first')) m *= 1.5; // お守り:はやての足
   return u.spd * modMult(u.side,'spd') * m;
 }
 
@@ -1277,6 +1325,11 @@ function renderSelect(){
   refreshPickBadges();
   updateModeBtns();
   matchStatus('');
+  const rb = rogueBest();
+  $('#rogue-best-lbl').textContent = rb>0 ? `🗺 ローグライト最高スコア: ${rb}` : '🗺 グラインドなしの腕試し！ 10戦1ラン・3体で挑め！';
+  updateRogueAscUI();
+  $('#next-btn').textContent = '次のバトルへ'; // ドラフトで書き換えた場合にもどす
+  const _dl = document.querySelector('.drop-label'); if(_dl) _dl.style.display = '';
   showScreen('select');
 }
 function togglePick(id){
@@ -1307,7 +1360,7 @@ function refreshPickBadges(){
 function updateModeBtns(){
   const ok = state.picked.length===3;
   $('#deploy-btn').disabled = !ok;
-  $('#match-btn').disabled = !ok;
+  $('#match-btn').disabled = false; // パネルを開くだけ(1本勝負は開始時に3体チェック / ドラフトは6体オーバーレイ)
   const trio = ok ? findTrio(state.picked) : null;
   $('#deploy-btn').innerHTML = trio ? `⚡三体合体出撃！<br>『${trio.name}』` : 'ひとりで出撃';
 }
@@ -1451,6 +1504,8 @@ function cleanupPvp(){
   pvp.oppParty = null; pvp.myMoves = null; pvp.oppMoves = {};
   pvp.started = false; pvp.connected = false; pvp.closedHandled = false; pvp.cancelled = false;
   pvp.lostConn = false;
+  pvp.draft = false; pvp.draftPool = null; pvp.oppPool = null; pvp.gameIdx = 0; pvp.wins = { me:0, opp:0 };
+  pvp.mySel3 = null; pvp.oppSel3 = null; pvp.myPrev = null; pvp.oppPrev = null; pvp.gameField = null;
 }
 $('#match-start').addEventListener('click', startMatching);
 $('#match-cancel').addEventListener('click', ()=>{
@@ -1461,14 +1516,23 @@ $('#match-cancel').addEventListener('click', ()=>{
 function startMatching(){
   const word = $('#word-input').value.trim();
   if(!word){ matchStatus('合言葉を入力してね'); return; }
-  if(state.picked.length!==3){ matchStatus('先にカードを3枚えらんでね'); return; }
   if(typeof Peer === 'undefined'){ matchStatus('通信ライブラリを読み込めなかった…ネット接続を確認してね'); return; }
+  if(pvpDraft){
+    if(Object.keys(state.owned).length < 6){ matchStatus('ドラフトには6体いじょうの手持ちが必要だよ'); return; }
+    showDraftPoolPick(()=> connectMatch(word)); // 6体えらんでから接続
+  } else {
+    if(state.picked.length!==3){ matchStatus('先にカードを3枚えらんでね'); return; }
+    connectMatch(word);
+  }
+}
+function connectMatch(word){
   cleanupPvp();
-  pvp.rule = pvpRule;
+  pvp.rule = pvpRule; pvp.draft = pvpDraft;
   pvp.oppRaidHands = {};
-  pvp.pickedIds = [...state.picked];
+  if(pvpDraft){ pvp.draftPool = draftPoolSel.map(id=>({ id, lv: pvpRule==='lv' ? (state.owned[id]||1) : 1 })); }
+  else { pvp.pickedIds = [...state.picked]; }
   matchStatus('せつぞく中…');
-  const hostId = 'abr3dv5' + (pvpRule==='lv' ? 'l' : 'f') + '-' + hashWord(word);
+  const hostId = 'abr3dv5' + (pvpDraft?'d':'') + (pvpRule==='lv' ? 'l' : 'f') + '-' + hashWord(word);
   const p = new Peer(hostId);
   pvp.peer = p;
   p.on('open', ()=>{
@@ -1517,19 +1581,30 @@ function bindConn(conn){
     if(pvp.cancelled){ try{conn.close();}catch(e){} return; }
     pvp.connected = true;
     matchStatus('マッチ成立！ バトル準備中…');
-    const party = pvp.pickedIds.map(id => ({ id, lv: (pvp.rule==='lv' ? (state.owned[id]||1) : 1) }));
-    conn.send({ t:'hello', v:5, rule:pvp.rule, party });
+    if(pvp.draft){
+      conn.send({ t:'hello', v:5, rule:pvp.rule, draft:true, pool: pvp.draftPool });
+    } else {
+      const party = pvp.pickedIds.map(id => ({ id, lv: (pvp.rule==='lv' ? (state.owned[id]||1) : 1) }));
+      conn.send({ t:'hello', v:5, rule:pvp.rule, draft:false, party });
+    }
   });
   conn.on('data', handleMsg);
   conn.on('close', onPvpClosed);
   conn.on('error', onPvpClosed);
 }
+const sanEntry = e => ({ id:cardById(e&&e.id).id, lv:Math.max(1,Math.min(MAX_LV,(e&&e.lv)|0||1)) });
 function handleMsg(m){
   if(!m || typeof m!=='object') return;
   if(m.t==='hello'){
-    if(m.v!==5 || m.rule!==pvp.rule){ matchStatus('相手のバージョンかルールが違うみたい…同じURLの最新版＆同じルールでためしてね'); return; }
-    if(Array.isArray(m.party) && m.party.length===3){
-      pvp.oppParty = m.party.map(e=>({ id:cardById(e&&e.id).id, lv:Math.max(1,Math.min(MAX_LV,(e&&e.lv)|0||1)) }));
+    if(m.v!==5 || m.rule!==pvp.rule || !!m.draft!==!!pvp.draft){ matchStatus('相手のバージョン/ルール/モードが違うみたい…同じURLの最新版＆同じ設定でためしてね'); return; }
+    if(pvp.draft){
+      if(Array.isArray(m.pool) && m.pool.length===6){
+        pvp.oppPool = m.pool.map(sanEntry);
+        if(pvp.isHost){ pvp.seed = (Math.random()*0xFFFFFFFF)>>>0; try{ pvp.conn.send({ t:'start', seed:pvp.seed }); }catch(e){} }
+        tryStartPvp();
+      }
+    } else if(Array.isArray(m.party) && m.party.length===3){
+      pvp.oppParty = m.party.map(sanEntry);
       if(pvp.isHost){
         pvp.seed = (Math.random()*0xFFFFFFFF)>>>0;
         try{ pvp.conn.send({ t:'start', seed:pvp.seed }); }catch(e){}
@@ -1539,11 +1614,17 @@ function handleMsg(m){
   } else if(m.t==='start'){
     pvp.seed = m.seed>>>0;
     tryStartPvp();
+  } else if(m.t==='dsel'){
+    if(pvp.draft && m.g===pvp.gameIdx && Array.isArray(m.sel) && m.sel.length>=1 && m.sel.length<=3){
+      pvp.oppSel3 = m.sel.map(sanEntry);
+      tryStartDraftBattle();
+    }
   } else if(m.t==='moves'){
+    if(pvp.draft && m.g!==pvp.gameIdx) return;
     pvp.oppMoves[m.turn] = m;
     tryResolve();
   } else if(m.t==='rhand'){
-    if(Number.isInteger(m.turn) && Number.isInteger(m.hand) && m.hand>=0 && m.hand<=2){
+    if((!pvp.draft || m.g===pvp.gameIdx) && Number.isInteger(m.turn) && Number.isInteger(m.hand) && m.hand>=0 && m.hand<=2){
       pvp.oppRaidHands[m.turn] = m.hand;
     }
   } else if(m.t==='emo'){
@@ -1551,15 +1632,22 @@ function handleMsg(m){
   }
 }
 function tryStartPvp(){
-  if(pvp.oppParty && pvp.seed!==null && pvp.connected && !pvp.started){
+  const haveOpp = pvp.draft ? (pvp.oppPool && pvp.oppPool.length===6) : !!pvp.oppParty;
+  if(haveOpp && pvp.seed!==null && pvp.connected && !pvp.started){
     pvp.started = true;
     $('#match-panel').classList.add('hidden');
-    startBattle('pvp');
+    if(pvp.draft) startDraftSeries(); else startBattle('pvp');
   }
 }
 function onPvpClosed(){
   if(pvp.closedHandled) return;
   pvp.closedHandled = true;
+  if(pvp.draft && pvp.started){
+    state.ended = true;
+    showBanner('あいてとの通信がきれた！', 1500);
+    setTimeout(()=>{ try{ endDraftSeries(true); }catch(e){} }, 900);
+    return;
+  }
   if(state.mode==='pvp' && pvp.started && !state.ended){
     if(state.phase==='anim'){
       pvp.lostConn = true;
@@ -1586,6 +1674,469 @@ function diffFactors(){
   return { hpF, atkF };
 }
 
+/* ================================================================
+   ローグライト・ラン (PvE 新モード / フェーズ1: ラン構造と戦術ループ)
+   - グラインドゼロ: 固定の少数★1からスタート。10戦1ラン・3体で挑む。
+   - 出した3体はHP/状態異常を次戦に持ち越し。控え(出さなかった子)は毎戦20%回復。
+   - 毎戦後の三択(monster/heal/buff/spcard)で「ラン中だけ」強くなる。
+   - 永続強化ゼロ。ハイスコアのみ localStorage(別キー)に保存。じゅもん/セーブには乗せない。
+   - 敵生成・三択抽選・報酬は run.seed のシード乱数(mulberry32)で確定 → ラン再現性。
+     ※ run._rng は combat乱数(Math.random)とは独立に進めるので構造が再現できる。
+   ================================================================ */
+const ROGUE = {
+  RUN_LEN: 10,
+  START_PARTY: [1, 5, 14, 9],   // 固定スタート ★1(氷/大地/炎/雷) Lv1
+  BENCH_HEAL: 0.20,             // 控えの毎戦回復率
+  HEAL_PCT: [0.30, 0.45],      // 回復報酬% [d1, d10] を線形補間
+  BUFF_PCT: [0.10, 0.20],      // バフ報酬%(攻 or 最大HP)
+};
+const ROGUE_BEST_KEY = () => 'astral_rogue_best:' + profileId;
+let run = null;            // 揮発: ラン中だけ存在(セーブしない)
+let rogueSpPick = null;    // SP使用時に消費する run.spStock の位置
+
+/* ---- フェーズ2: 数値スケーリング共通ヘルパー (handoff 3-3) ---- */
+function mag(base, perTier, perDepth, tier, d){ return base + perTier*(((tier||1)-1)) + perDepth*((d!==undefined)?d:(run?run.d:1)); }
+
+/* ---- フェーズ2: フィールド (対称・PvE/PvP両用 / handoff 3-4) ---- */
+const FIELDS = [
+  { id:'fog',   name:'濃霧',   eff:'miss',    desc:'おたがいの こうげきが 当たりにくくなる' },
+  { id:'storm', name:'雷雲',   eff:'thunder', desc:'雷ぞくせいの ダメージが 強くなる' },
+  { id:'sanc',  name:'聖域',   eff:'heal',    desc:'かいふくりょうが アップする' },
+  { id:'lava',  name:'灼熱',   eff:'burn',    desc:'毎ターン 全員が すこし やけどダメージ' },
+  { id:'hush',  name:'静寂',   eff:'silence', desc:'じょうたい異常の せいこうりつ ダウン' },
+];
+const fieldById = id => FIELDS.find(f=>f.id===id) || FIELDS[0];
+function makeField(id, tier, d){
+  const def = fieldById(id);
+  return { id:def.id, name:def.name, eff:def.eff, desc:def.desc, tier,
+    strength: mag(0.12, 0.06, 0.012, tier, d), battlesLeft:(tier>=4 ? 2 : 1) };
+}
+function fieldEff(eff){ return (state.field && state.field.eff===eff) ? state.field : null; }
+
+/* ---- フェーズ2: お守り (relic = ラン限定の常時パッシブ / handoff 3-5) ---- */
+const RELICS = [
+  { id:'poison_lead', name:'どくのキバ',     desc:'毎ターン 敵の先頭に「どく」をあたえる' },
+  { id:'fusion_up',   name:'がったいのコア', desc:'合体技のダメージが +20%' },
+  { id:'st_immune',   name:'清めのまもり',   desc:'味方は じょうたい異常に ならない' },
+  { id:'heal_start',  name:'いやしの泉',     desc:'各戦のはじめに 先頭が 15%かいふく' },
+  { id:'raid_gauge',  name:'とつげきの極意', desc:'突撃に勝つと 必殺ゲージ +20%' },
+  { id:'swift_first', name:'はやての足',     desc:'1ターン目は 味方全体の すばやさ +50%' },
+  { id:'leech_all',   name:'きゅうけつの牙', desc:'味方のこうげきで 与ダメの15%かいふく' },
+];
+const relicById = id => RELICS.find(r=>r.id===id) || null;
+function hasRelic(id){ return !!(run && run.relics && run.relics.includes(id)); }
+
+/* ---- フェーズ2: しばり段階 (Ascension / handoff) ---- */
+const ROGUE_ASC_KEY = () => 'astral_rogue_asc:' + profileId;
+function rogueMaxAsc(){ try{ return Math.max(0, parseInt(localStorage.getItem(ROGUE_ASC_KEY())||'0',10)||0); }catch(e){ return 0; } }
+function setRogueMaxAsc(v){ try{ localStorage.setItem(ROGUE_ASC_KEY(), String(Math.max(0,v))); }catch(e){} }
+let rogueAscSel = 0;
+
+function rogueBest(){ try{ return Math.max(0, parseInt(localStorage.getItem(ROGUE_BEST_KEY())||'0',10)||0); }catch(e){ return 0; } }
+function setRogueBest(v){ try{ localStorage.setItem(ROGUE_BEST_KEY(), String(v)); }catch(e){} }
+
+/* run専用シード乱数 (構造の再現性用・combatのMath.randomとは独立) */
+function rgf(){ return run._rng(); }
+function rgi(n){ return Math.floor(rgf()*n); }
+function rlerp(arr){ const k = (run.d-1)/(ROGUE.RUN_LEN-1); return arr[0] + (arr[1]-arr[0])*k; }
+
+function rogueNewEntry(id, lv){
+  const inst = instCard(id, lv);
+  return { id, lv, buffAtk:0, buffHp:0, hp:inst.hp, st:null, stT:0 };
+}
+function rogueMaxHp(e){ return Math.round(instCard(e.id, e.lv).hp * (1 + e.buffHp)); }
+function rogueInst(e){
+  const base = instCard(e.id, e.lv);
+  return { ...base, hp: rogueMaxHp(e), atk: Math.round(base.atk * (1 + e.buffAtk)) };
+}
+function startRogueRun(seed){
+  const sd = (seed!==undefined) ? (seed>>>0) : ((Math.random()*0xFFFFFFFF)>>>0);
+  run = {
+    active:true, seed:sd, _rng:mulberry32(sd),
+    d:1, cleared:0,
+    party: ROGUE.START_PARTY.map(id=>rogueNewEntry(id, 1)),
+    deployed:[0,1,2], pendingEnemies:null,
+    spStock:[], relics:[], field:null, ascension: Math.max(0, Math.min(rogueMaxAsc(), rogueAscSel)),
+  };
+  state.mode = 'rogue';
+  beginRogueBattle();
+}
+/* 敵生成 (深さ d に応じて diffFactors の考え方を流用) */
+function rogueDiff(){
+  const d = run.d, asc = run.ascension||0;
+  const base = 1.2 + (d-1)*0.16;        // d1≈1.2 .. d10≈2.64
+  const hpF = base * (1 + asc*0.12);    // asc はフェーズ2の「しばり段階」用(今は0)
+  const atkF = 1 + (hpF-1)*0.5;
+  return { hpF, atkF };
+}
+function rollRogueEnemies(){
+  const { hpF, atkF } = rogueDiff();
+  const d = run.d;
+  if(d===ROGUE.RUN_LEN){
+    // 10戦目: ボス + おとも2 (STAGE_BOSSES / ENEMY_POOL 流用)
+    const b0 = STAGE_BOSSES[rgi(STAGE_BOSSES.length)];
+    const boss = { ...b0, boss:true, hp:Math.round(b0.hp*0.7*hpF*1.4), atk:Math.round(b0.atk*0.9*atkF) };
+    const minions = [0,1].map(()=>{ const e = ENEMY_POOL[rgi(ENEMY_POOL.length)];
+      return { ...e, hp:Math.round(e.hp*0.85*hpF*1.4), atk:Math.round(e.atk*0.85*atkF) }; });
+    return [minions[0], boss, minions[1]];
+  }
+  const elite = (d===5);
+  const out = [];
+  for(let i=0;i<3;i++){
+    const e = ENEMY_POOL[rgi(ENEMY_POOL.length)];
+    const em = elite ? 1.3 : 1, am = elite ? 1.15 : 1;
+    out.push({ ...e, name:(elite?'★':'')+e.name,
+      hp:Math.round(e.hp*hpF*1.4*em), atk:Math.round(e.atk*atkF*am) });
+  }
+  return out;
+}
+function beginRogueBattle(){
+  run.pendingEnemies = rollRogueEnemies();  // 敵を先に確定(プレビュー用・seeded)
+  showRoguePartySelect();
+}
+/* 編成選択(出す3体を選ぶ・次戦の敵をプレビュー) */
+function showRoguePartySelect(){
+  const ov = $('#rogue-overlay'); ov.classList.remove('hidden');
+  $('#rg-head-d').textContent = `d${run.d}/10`;
+  const ens = run.pendingEnemies;
+  const isBoss = run.d===ROGUE.RUN_LEN, isElite = run.d===5;
+  const enemyHtml = ens.map(e=>{
+    const elj = (ELEMS[e.el] && ELEMS[e.el].jp) || '';
+    return `<span class="rg-en"><span class="rg-dot" style="background:${hexCss(e.color)}"></span>${e.boss?'👑':''}${e.name} <small>[${elj}]</small></span>`;
+  }).join('');
+  let sel = run.party.map((e,i)=>i).filter(i=>run.party[i].hp>0).slice(0,3);
+  const body = $('#rogue-body');
+  function render(){
+    let h = `<div class="save-box">
+      <div class="save-ttl">${isBoss?'👑 さいごの試練！':isElite?'⚠ エリートバトル':'つぎのてき'}（d${run.d}/10）</div>
+      <div class="rg-enemies">${enemyHtml}</div>
+      <div class="save-note" style="margin-top:0">🔮お守り: ${run.relics.length?run.relics.map(id=>relicById(id).name).join('・'):'なし'}　🃏SP:${run.spStock.length}枚${run.field?`　🌫次戦フィールド:${run.field.name}`:''}${run.ascension?`　🔥しばりLv${run.ascension}`:''}</div>
+      <div class="save-lbl">出撃する3体をえらぼう（HP・状態は次の戦いに持ち越し！ 出さない子は20%回復）</div>
+      <div class="rg-grid">`;
+    run.party.forEach((e,i)=>{
+      const c = cardById(e.id), mhp = rogueMaxHp(e), inst = rogueInst(e);
+      const hpP = Math.max(0, e.hp/mhp*100), faint = e.hp<=0, isSel = sel.includes(i);
+      const buffs = (e.buffAtk?` 攻+${Math.round(e.buffAtk*100)}%`:'') + (e.buffHp?` HP+${Math.round(e.buffHp*100)}%`:'');
+      h += `<div class="rg-tile r${c.rare}${isSel?' sel':''}${faint?' faint':''}" data-i="${i}">
+        ${isSel?`<div class="rg-badge">${sel.indexOf(i)+1}</div>`:''}
+        <div class="rg-tname">${c.name}${e.lv>1?` Lv${e.lv}`:''}</div>
+        <div class="rg-thp"><div class="rg-thpf" style="width:${hpP}%"></div></div>
+        <div class="rg-tstat">HP ${Math.max(0,Math.round(e.hp))}/${mhp} 攻${inst.atk} ${ELEMS[c.el].jp}${buffs}${faint?'<br><b style="color:#ff8a8a">ひんし(控えで回復)</b>':''}<br>特性:${TRAITS[CARD_TRAITS[e.id]].name}</div>
+      </div>`;
+    });
+    h += `</div></div><button id="rogue-go" ${sel.length<1?'disabled':''}>この${sel.length}体で出撃！</button>`;
+    body.innerHTML = h;
+    body.querySelectorAll('.rg-tile').forEach(t=>t.addEventListener('click', ()=>{
+      const i = +t.dataset.i;
+      if(run.party[i].hp<=0) return;
+      const k = sel.indexOf(i);
+      if(k>=0) sel.splice(k,1);
+      else { if(sel.length>=3) return; sel.push(i); }
+      sndSelect(); render();
+    }));
+    $('#rogue-go').addEventListener('click', ()=>{
+      if(sel.length<1) return;
+      run.deployed = [...sel];
+      ov.classList.add('hidden');
+      sndSelect();
+      startBattle('rogue');
+    });
+  }
+  render();
+}
+/* 三択報酬 */
+function rollRewardTier(){
+  const d = run.d;
+  const floor = (d===5 || d===ROGUE.RUN_LEN) ? 3 : 1; // エリート/ボスは★3下限 (handoff 3-2)
+  const w = [Math.max(0,50-4*d), 35, 10+2*d, Math.max(0,-5+1.5*d)]; // ★1..★4
+  for(let i=0;i<floor-1;i++) w[i] = 0;
+  let tot = w.reduce((a,b)=>a+b,0), r = rgf()*tot, acc = 0;
+  for(let i=0;i<w.length;i++){ acc += w[i]; if(r<acc) return i+1; }
+  return floor;
+}
+function rogueRollOneReward(){
+  const d = run.d, tier = rollRewardTier(), lvNew = 1 + Math.floor((d-1)/3);
+  // カテゴリ抽選 (relic は未所持があるときだけ候補に)
+  const relicLeft = RELICS.filter(r=>!hasRelic(r.id));
+  const cats = ['monster','buff','heal','spcard','field'];
+  if(relicLeft.length) cats.push('relic');
+  const weight = { monster:26, buff:18, heal:15, spcard:12, field:15, relic:18 };
+  let tot = cats.reduce((a,c)=>a+weight[c],0), r = rgf()*tot, acc = 0, cat = 'monster';
+  for(const c of cats){ acc += weight[c]; if(r<acc){ cat = c; break; } }
+  if(cat==='monster'){
+    const cands = CARD_POOL.filter(c=>c.rare===tier);
+    const c = cands[rgi(cands.length)];
+    return { title:`🐾 なかま: ${c.name}`, desc:`${'★'.repeat(c.rare)} ${ELEMS[c.el].jp}属性 / 特性:${TRAITS[CARD_TRAITS[c.id]].name}（パーティに Lv${lvNew} で加わる）`,
+      apply:(cb)=>{ run.party.push(rogueNewEntry(c.id, lvNew)); cb(); } };
+  }
+  if(cat==='buff'){
+    const isAtk = rgf()<0.5, pct = Math.round(mag(6,4,0.4,tier))/100; // 攻撃バフ% (handoff 3-3)
+    return { title:`${isAtk?'⚔':'❤'} ${'★'.repeat(tier)}バフ: ${isAtk?'こうげき':'さいだいHP'}+${Math.round(pct*100)}%`, desc:`1体をえらんで このランのあいだ ずっと ${isAtk?'こうげき力':'さいだいHP'}アップ`,
+      apply:(cb)=>{ chooseRogueTarget(`どの子に ${isAtk?'こうげき':'HP'}+${Math.round(pct*100)}% ？`, (i)=>{
+        const e = run.party[i];
+        if(isAtk) e.buffAtk += pct;
+        else { const o = rogueMaxHp(e); e.buffHp += pct; e.hp += (rogueMaxHp(e)-o); }
+        cb();
+      }); } };
+  }
+  if(cat==='heal'){
+    const pct = Math.round(mag(15,8,1.5,tier))/100; // 回復% (handoff 3-3)
+    return { title:`💚 ${'★'.repeat(tier)}回復: 全員HP+${Math.round(pct*100)}%`, desc:`パーティ全員のHPを ${Math.round(pct*100)}% かいふく（ひんしの子も復活）`,
+      apply:(cb)=>{ run.party.forEach(e=>{ const mhp = rogueMaxHp(e); e.hp = Math.min(mhp, Math.max(0,e.hp)+Math.round(mhp*pct)); }); cb(); } };
+  }
+  if(cat==='field'){
+    const def = FIELDS[rgi(FIELDS.length)];
+    return { title:`🌫 ${'★'.repeat(tier)}フィールド: ${def.name}`, desc:`${def.desc}（次の戦いで両者に発動${tier>=4?'・2戦つづく':''}）`,
+      apply:(cb)=>{ run.field = makeField(def.id, tier, d); cb(); } };
+  }
+  if(cat==='relic'){
+    const rel = relicLeft[rgi(relicLeft.length)];
+    return { title:`🔮 お守り: ${rel.name}`, desc:`${rel.desc}（このランのあいだ ずっと有効）`,
+      apply:(cb)=>{ run.relics.push(rel.id); cb(); } };
+  }
+  const idx = rgi(SP_CARDS.length), sp = SP_CARDS[idx];
+  return { title:`🃏 SPカード: ${sp.name}`, desc:`${sp.desc}（ランちゅう ストックして つかえる）`,
+    apply:(cb)=>{ run.spStock.push(idx); cb(); } };
+}
+function showRogueReward(done){
+  const ov = $('#rogue-overlay'); ov.classList.remove('hidden');
+  $('#rg-head-d').textContent = `d${run.d}/10  ─  ごほうび`;
+  const choices = [rogueRollOneReward(), rogueRollOneReward(), rogueRollOneReward()];
+  const body = $('#rogue-body');
+  body.innerHTML = `<div class="save-box"><div class="save-ttl">🎁 ごほうびを1つ えらぼう！</div>` +
+    choices.map((c,i)=>`<button class="sp-item rg-choice" data-i="${i}"><span class="sp-name">${c.title}</span><div class="sp-desc">${c.desc}</div></button>`).join('') +
+    `</div>`;
+  body.querySelectorAll('.rg-choice').forEach(b=>b.addEventListener('click', ()=>{
+    sndSelect();
+    choices[+b.dataset.i].apply(()=>{ ov.classList.add('hidden'); done(); });
+  }));
+}
+function chooseRogueTarget(title, cb){
+  const ov = $('#rogue-overlay'); ov.classList.remove('hidden');
+  const body = $('#rogue-body');
+  let h = `<div class="save-box"><div class="save-ttl">${title}</div><div class="rg-grid">`;
+  run.party.forEach((e,i)=>{
+    const c = cardById(e.id), mhp = rogueMaxHp(e), inst = rogueInst(e);
+    h += `<div class="rg-tile r${c.rare}" data-i="${i}"><div class="rg-tname">${c.name}${e.lv>1?` Lv${e.lv}`:''}</div><div class="rg-tstat">HP ${mhp} 攻${inst.atk} ${ELEMS[c.el].jp}</div></div>`;
+  });
+  h += `</div></div>`;
+  body.innerHTML = h;
+  body.querySelectorAll('.rg-tile').forEach(t=>t.addEventListener('click', ()=>{ sndSelect(); cb(+t.dataset.i); }));
+}
+/* バトル終了 → ラン処理 (endBattle から分岐) */
+async function endRogueBattle(win){
+  myUnits().forEach((u,k)=>{
+    const e = run.party[run.deployed[k]];
+    if(!e) return;
+    e.hp  = u.alive ? Math.max(0, Math.round(u.hp)) : 0;
+    e.st  = u.alive ? (u.st||null) : null;
+    e.stT = u.alive ? (u.stT||0) : 0;
+  });
+  if(run.field){ run.field.battlesLeft--; if(run.field.battlesLeft<=0) run.field = null; } // フィールド消費
+  if(!win){ endRogueRun(false); return; }
+  run.cleared++;
+  // 控え(この戦いに出さなかった子)を回復
+  run.party.forEach((e,idx)=>{
+    if(!run.deployed.includes(idx)){
+      const mhp = rogueMaxHp(e);
+      e.hp = Math.min(mhp, Math.max(0,e.hp) + Math.round(mhp*ROGUE.BENCH_HEAL));
+      e.st = null; e.stT = 0;
+    }
+  });
+  if(run.d >= ROGUE.RUN_LEN){ endRogueRun(true); return; }
+  run.d++;
+  showRogueReward(()=> beginRogueBattle());
+}
+function endRogueRun(victory){
+  const cleared = run.cleared, partyN = run.party.length, asc = run.ascension||0;
+  const score = Math.round((cleared*1000 + partyN*120 + (victory ? 5000 : 0)) * (1 + asc*0.25)); // しばりでスコア倍率UP
+  const best = rogueBest(), isBest = score > best;
+  if(isBest) setRogueBest(score);
+  // しばり段階クリアで次の段階を解放 (Slay the Spire方式・永続強化ではない)
+  if(victory && asc >= rogueMaxAsc()) setRogueMaxAsc(asc + 1);
+  run.active = false; run = null; state.mode = 'pve';
+  showRogueEnd(victory, cleared, partyN, score, isBest, asc);
+}
+function showRogueEnd(victory, cleared, partyN, score, isBest, asc){
+  const ov = $('#rogue-overlay'); ov.classList.remove('hidden');
+  $('#rg-head-d').textContent = victory ? 'クリア！' : 'おわり';
+  if(victory){ sndWin(); } else { sndLose(); }
+  const unlocked = victory && (asc||0)+1 === rogueMaxAsc();
+  $('#rogue-body').innerHTML = `<div class="save-box" style="text-align:center">
+    <div class="save-ttl" style="font-size:20px;color:${victory?'#ffd95e':'#7a8fbb'}">${victory?'🏆 ラン クリア！！':'💀 ランしゅうりょう'}</div>
+    <div class="save-lbl">突破: <b>${cleared}</b>戦 ／ あつめたなかま <b>${partyN}</b>体 ／ しばりLv<b>${asc||0}</b></div>
+    <div class="save-lbl" style="font-size:18px;color:#8fe3ff">スコア <b>${score}</b>${isBest?' <span style="color:#6dffa0">🎉ベスト更新！</span>':''}</div>
+    ${unlocked?`<div class="save-lbl" style="color:#ff7df0">🔓 しばりLv${rogueMaxAsc()} 解放！つぎはもっと手ごわいぞ</div>`:''}
+    <div class="save-note">ベストスコア: ${rogueBest()}（永続強化はなし。腕前だけが頼り！）</div>
+    <button id="rogue-end-btn" class="mini-btn save-act go">メニューにもどる</button>
+  </div>`;
+  $('#rogue-end-btn').addEventListener('click', ()=>{ sndSelect(); ov.classList.add('hidden'); renderSelect(); });
+}
+$('#rogue-btn').addEventListener('click', ()=>{ sndSelect(); startRogueRun(); });
+$('#rogue-quit').addEventListener('click', ()=>{
+  if(run && run.active){ if(confirm('ランをやめてメニューにもどる？（スコアは記録されるよ）')) endRogueRun(false); }
+  else { $('#rogue-overlay').classList.add('hidden'); renderSelect(); }
+});
+function updateRogueAscUI(){
+  const mx = rogueMaxAsc();
+  rogueAscSel = Math.max(0, Math.min(mx, rogueAscSel));
+  $('#rogue-asc-row').classList.toggle('hidden', mx<=0);
+  $('#rasc-lbl').textContent = `Lv${rogueAscSel}${rogueAscSel===0?'（なし）':''} / 解放Lv${mx}`;
+  $('#rasc-prev').disabled = rogueAscSel<=0;
+  $('#rasc-next').disabled = rogueAscSel>=mx;
+}
+$('#rasc-prev').addEventListener('click', ()=>{ rogueAscSel = Math.max(0, rogueAscSel-1); sndSelect(); updateRogueAscUI(); });
+$('#rasc-next').addEventListener('click', ()=>{ rogueAscSel = Math.min(rogueMaxAsc(), rogueAscSel+1); sndSelect(); updateRogueAscUI(); });
+
+/* ================================================================
+   ドラフトBO3 (PvP・フェーズ3 / 既存リアルタイムPvPと併存)
+   - 手持ち全体から6体を持ち込み、3本勝負。各戦その6体から3体を選抜。
+   - 相手が前戦に出した3体を表示(カウンターピック)。
+   - 各戦ランダムな対称フィールド(フェーズ2エンジン流用)を両者に開示。
+   - 同期: 既存のシード同期+ロックステップを各ゲームに適用(seed ^ gameIdx)。
+     6体プール・各戦の3体選抜・フィールド抽選をすべて同期メッセージ/シードで一致させる。
+   ================================================================ */
+let pvpDraft = false;
+function setDraftModeUI(){
+  $('#mode-single').classList.toggle('dsel', !pvpDraft);
+  $('#mode-draft').classList.toggle('dsel', pvpDraft);
+}
+$('#mode-single').addEventListener('click', ()=>{ pvpDraft=false; setDraftModeUI(); sndSelect(); matchStatus('🎯 1本勝負: えらんだ3体で1戦勝負'); });
+$('#mode-draft').addEventListener('click', ()=>{ pvpDraft=true; setDraftModeUI(); sndSelect(); matchStatus('⚔ ドラフトBO3: 6体持ち込み→各戦3体選抜の3本勝負'); });
+setDraftModeUI();
+
+/* マッチ前: 手持ち全体から6体を選ぶ */
+function showDraftPoolPick(onDone){
+  const ov = $('#draft-overlay'); ov.classList.remove('hidden');
+  $('#df-head').textContent = '6体を選ぶ';
+  const ids = Object.keys(state.owned).map(Number).sort((a,b)=>(cardById(b).rare-cardById(a).rare)||(a-b));
+  let sel = [];
+  const body = $('#draft-body');
+  function render(){
+    let h = `<div class="save-box"><div class="save-ttl">⚔ 持ち込む6体をえらぼう（${sel.length}/6）</div>
+      <div class="save-lbl">手持ち全体から自由に編成OK（${pvpRule==='lv'?'育成Lvルール: Lvが反映される':'Lv1ルール: 全員Lv1'}）</div>
+      <div class="rg-grid">`;
+    ids.forEach(id=>{
+      const c = cardById(id), lv = state.owned[id], k = sel.indexOf(id);
+      h += `<div class="rg-tile r${c.rare}${k>=0?' sel':''}" data-i="${id}">
+        ${k>=0?`<div class="rg-badge">${k+1}</div>`:''}
+        <div class="rg-tname">${c.name}${lv>1?` Lv${lv}`:''}</div>
+        <div class="rg-tstat">${'★'.repeat(c.rare)} ${ELEMS[c.el].jp}<br>特性:${TRAITS[CARD_TRAITS[id]].name}</div>
+      </div>`;
+    });
+    h += `</div></div><button id="draft-go" ${sel.length!==6?'disabled':''}>この6体でマッチ！</button>`;
+    body.innerHTML = h;
+    body.querySelectorAll('.rg-tile').forEach(t=>t.addEventListener('click', ()=>{
+      const id = +t.dataset.i, k = sel.indexOf(id);
+      if(k>=0) sel.splice(k,1); else { if(sel.length>=6) return; sel.push(id); }
+      sndSelect(); render();
+    }));
+    $('#draft-go').addEventListener('click', ()=>{
+      if(sel.length!==6) return;
+      draftPoolSel = [...sel];
+      ov.classList.add('hidden'); sndSelect();
+      onDone();
+    });
+  }
+  render();
+}
+function startDraftSeries(){
+  pvp.gameIdx = 0; pvp.wins = { me:0, opp:0 };
+  pvp.myPrev = null; pvp.oppPrev = null;
+  beginDraftGame();
+}
+function rollDraftField(gameIdx){
+  const r = mulberry32((pvp.seed ^ Math.imul(gameIdx+1, 0x27d4eb2f)) >>> 0);
+  const def = FIELDS[Math.floor(r()*FIELDS.length)];
+  const tier = 1 + Math.floor(r()*3); // ★1..3 (両者が同じseedで一致)
+  return makeField(def.id, tier, 2);
+}
+function beginDraftGame(){
+  pvp.mySel3 = null; pvp.oppSel3 = null;
+  pvp.oppMoves = {}; pvp.myMoves = null; pvp.oppRaidHands = {}; pvp.lostConn = false;
+  pvp.gameField = rollDraftField(pvp.gameIdx);
+  showDraftPick();
+}
+function showDraftPick(){
+  const ov = $('#draft-overlay'); ov.classList.remove('hidden');
+  $('#df-head').textContent = `ゲーム${pvp.gameIdx+1}/最大3  [${pvp.wins.me} - ${pvp.wins.opp}]`;
+  const pool = pvp.draftPool, fld = pvp.gameField;
+  let sel = [];
+  const body = $('#draft-body');
+  function render(){
+    const prevTxt = (pvp.oppPrev && pvp.oppPrev.length)
+      ? 'あいてが前のゲームで出した3体: ' + pvp.oppPrev.map(e=>cardById(e.id).name).join('・')
+      : 'さいしょのゲーム！ よみあいスタート';
+    let h = `<div class="save-box"><div class="save-ttl">⚔ 出す3体をえらぼう（${sel.length}/3）</div>
+      <div class="df-prev">🔎 ${prevTxt}</div>
+      <div class="rg-enemies"><span class="rg-en">🌫 フィールド: ${fld.name} <small>[${fld.desc}]</small></span></div>
+      <div class="rg-grid">`;
+    pool.forEach((e,i)=>{
+      const c = cardById(e.id), k = sel.indexOf(i), inst = instCard(e.id, pvp.rule==='lv'?e.lv:1);
+      h += `<div class="rg-tile r${c.rare}${k>=0?' sel':''}" data-i="${i}">
+        ${k>=0?`<div class="rg-badge">${k+1}</div>`:''}
+        <div class="rg-tname">${c.name}${(pvp.rule==='lv'&&e.lv>1)?` Lv${e.lv}`:''}</div>
+        <div class="rg-tstat">HP${inst.hp} 攻${inst.atk} 速${inst.spd}<br>${'★'.repeat(c.rare)} ${ELEMS[c.el].jp} 特性:${TRAITS[CARD_TRAITS[e.id]].name}</div>
+      </div>`;
+    });
+    h += `</div></div><button id="draft-go" ${sel.length!==3?'disabled':''}>この3体で出撃！</button>`;
+    body.innerHTML = h;
+    body.querySelectorAll('.rg-tile').forEach(t=>t.addEventListener('click', ()=>{
+      const i = +t.dataset.i, k = sel.indexOf(i);
+      if(k>=0) sel.splice(k,1); else { if(sel.length>=3) return; sel.push(i); }
+      sndSelect(); render();
+    }));
+    $('#draft-go').addEventListener('click', ()=>{
+      if(sel.length!==3) return;
+      pvp.mySel3 = sel.map(i=>({ id:pool[i].id, lv:pool[i].lv }));
+      sndSelect();
+      body.innerHTML = `<div class="save-box"><div class="save-ttl">あいての選抜をまっています…</div><div class="save-lbl">あいてが3体えらぶのを待っているよ</div></div>`;
+      try{ pvp.conn.send({ t:'dsel', g:pvp.gameIdx, sel: pvp.mySel3 }); }catch(e){}
+      tryStartDraftBattle();
+    });
+  }
+  render();
+}
+function tryStartDraftBattle(){
+  if(!pvp.mySel3 || !pvp.oppSel3) return;
+  pvp.pickedIds = pvp.mySel3.map(e=>e.id);
+  pvp.oppParty  = pvp.oppSel3.map(e=>({ id:e.id, lv:e.lv }));
+  $('#draft-overlay').classList.add('hidden');
+  startBattle('pvp');
+}
+async function endDraftGame(win){
+  if(win) pvp.wins.me++; else pvp.wins.opp++;
+  pvp.oppPrev = pvp.oppSel3 ? pvp.oppSel3.slice() : pvp.oppPrev; // 次戦のよみあい用に保存
+  pvp.myPrev  = pvp.mySel3  ? pvp.mySel3.slice()  : pvp.myPrev;
+  showBanner(`ゲーム${pvp.gameIdx+1} ${win?'勝ち！':'まけ…'}  [${pvp.wins.me} - ${pvp.wins.opp}]`, 1900, win?'sp':'wait');
+  await sleep(1700);
+  if(pvp.wins.me>=2 || pvp.wins.opp>=2){ endDraftSeries(pvp.wins.me > pvp.wins.opp); return; }
+  pvp.gameIdx++;
+  beginDraftGame();
+}
+function endDraftSeries(meWon){
+  const sc = `[${pvp.wins.me} - ${pvp.wins.opp}]`;
+  state.ended = true;
+  cleanupPvp();
+  $('#draft-overlay').classList.add('hidden');
+  $('#result-title').textContent = meWon ? 'BO3 せいは！！' : 'BO3 はいぼく…';
+  $('#result-title').className = meWon ? 'win' : 'lose';
+  $('#result-msg').textContent = `ドラフトBO3 ${sc}\n` + (meWon ? 'みごとな采配だ！' : 'リベンジしよう！');
+  const dl = document.querySelector('.drop-label'); if(dl) dl.style.display = 'none';
+  $('#reward-card').innerHTML = '';
+  $('#next-btn').classList.remove('hidden');
+  $('#next-btn').textContent = 'メニューにもどる';
+  if(meWon) sndWin(); else sndLose();
+  showScreen('result');
+}
+$('#draft-quit').addEventListener('click', ()=>{
+  if(confirm('ドラフトをやめてメニューにもどる？')){
+    sndSelect(); cleanupPvp();
+    $('#draft-overlay').classList.add('hidden');
+    state.mode = 'pve'; renderSelect();
+  }
+});
+
 /* ---------------- バトル開始 ---------------- */
 function startBattle(mode){
   state.mode = mode;
@@ -1600,11 +2151,26 @@ function startBattle(mode){
   state.units = { A:[], B:[] };
   state.bossBattle = false;
 
+  let trioBanner = null;
+  if(mode==='rogue'){
+    // プレイヤー: run.deployed から(持ち越しHP/状態を反映・合体はフェーズ1では無し)
+    state.units[state.mySide] = run.deployed.map((pi,i)=>{
+      const e = run.party[pi];
+      const u = createUnit(rogueInst(e), state.mySide, i);
+      u.hp = Math.max(1, Math.min(u.maxHp, Math.round(e.hp))); // 出せるのはHP>0の個体のみ(編成画面で保証)
+      u.st = e.st || null; u.stT = e.stT || 0;
+      updateHpUI(u); updateStatusUI(u);
+      return u;
+    });
+    // 敵: 編成画面で確定済みの pendingEnemies を使用(seeded)
+    const ens = run.pendingEnemies || rollRogueEnemies();
+    state.bossBattle = (run.d === ROGUE.RUN_LEN);
+    state.units.B = ens.map((d,i)=>createUnit(d, 'B', i, d.boss ? { boss:true, scale:1.45 } : {}));
+  } else {
   const pickedIds = (mode==='pvp') ? pvp.pickedIds : state.picked;
   const lvOf = id => (mode==='pvp' && pvp.rule!=='lv') ? 1 : (state.owned[id]||1); // PvP:ルールに応じてLv反映
   state.lastParty = [...pickedIds]; saveGame(); // 前回パーティを記憶
   const myTrio = findTrio(pickedIds);
-  let trioBanner = null;
   if(myTrio){
     const lv = Math.max(...pickedIds.map(lvOf));
     state.units[state.mySide] = [ createUnit(instTrio(myTrio, lv), state.mySide, 1, { scale:1.6 }) ];
@@ -1656,6 +2222,14 @@ function startBattle(mode){
       });
     }
   }
+  }
+
+  // フィールド設定(対称): ローグ=run.field / ドラフトBO3=gameField / それ以外=なし
+  state.field = (mode==='rogue') ? (run.field||null) : (pvp.draft ? (pvp.gameField||null) : null);
+  if(mode==='rogue' && hasRelic('heal_start')){ // お守り:いやしの泉
+    const hu = myUnits()[0];
+    if(hu){ hu.hp = Math.min(hu.maxHp, hu.hp + Math.round(hu.maxHp*0.15)); updateHpUI(hu); }
+  }
 
   state.turn = 1;
   state.gauge = { A:0, B:0 };
@@ -1669,6 +2243,7 @@ function startBattle(mode){
   showScreen('battle');
   showBanner(
     mode==='pvp' ? '⚔ 合言葉マッチ成立！ バトルスタート！ ⚔'
+    : mode==='rogue' ? (state.bossBattle ? '👑 さいごの試練！ ボス出現！ 👑' : run.d===5 ? '⚠ エリートバトル！ d5/10 ⚠' : `🗺 ローグライト d${run.d}/10 スタート！`)
     : state.bossBattle ? `👑 ボスバトル！！ ${STAGE_BOSSES[(state.stage-1)%5].name}出現！ 👑`
     : `ステージ${state.stage} 第${state.stageBattle}戦  スタート！`, 1500);
   if(trioBanner){
@@ -1678,6 +2253,7 @@ function startBattle(mode){
     sndFusion();
     setTimeout(()=>showBanner(`⚡三体合体！『${trioBanner}』降臨！！⚡`, 2000, 'fusion'), 1000);
   }
+  if(state.field){ setTimeout(()=>showBanner(`🌫 フィールド『${state.field.name}』！ ${state.field.desc}`, 1700, 'sp'), trioBanner?2400:700); }
   startSelection();
 }
 
@@ -1686,7 +2262,9 @@ function startSelection(){
   state.phase = 'select';
   state.mySel = [null,null,null];
   state.pendingSp = null; state.pendingRaid = null;
-  $('#tb-wave').textContent = state.mode==='pvp' ? ('⚔ 通信対戦' + (pvp.rule==='lv'?'［育成Lv］':'［Lv1］')) : `S${state.stage} ${state.stageBattle}/${STAGE_LEN}${state.bossBattle?' 👑':''}`;
+  $('#tb-wave').textContent = state.mode==='pvp' ? ('⚔ 通信対戦' + (pvp.rule==='lv'?'［育成Lv］':'［Lv1］'))
+    : state.mode==='rogue' ? `🗺 ローグ d${run.d}/10${state.bossBattle?' 👑':run.d===5?' ⚠':''}`
+    : `S${state.stage} ${state.stageBattle}/${STAGE_LEN}${state.bossBattle?' 👑':''}`;
   $('#tb-turn').textContent = `TURN ${state.turn}`;
   updateOppGaugeUI();
   const row = $('#cmd-row');
@@ -1790,7 +2368,7 @@ function lockSelectionUI(){
 function updateTacticBtns(){
   const my = state.mySide;
   const spb = $('#sp-btn'), rb = $('#raid-btn');
-  spb.disabled = state.spUsed[my] || state.phase!=='select';
+  spb.disabled = state.spUsed[my] || state.phase!=='select' || (state.mode==='rogue' && run.spStock.length===0 && state.pendingSp===null);
   rb.disabled = state.raidUsed[my] || state.phase!=='select';
   spb.classList.toggle('armed', state.pendingSp!==null);
   spb.textContent = state.spUsed[my] ? '🃏 SP使用済み'
@@ -1804,15 +2382,25 @@ function openSpPanel(){
   if(state.phase!=='select' || state.spUsed[state.mySide]) return;
   const ov = $('#overlay-panel');
   let html = '<div class="ov-box"><div class="ov-title">🃏 SPカードを選択 (1バトル1回)</div>';
-  SP_CARDS.forEach((sp,i)=>{
-    html += `<button class="sp-item" data-i="${i}"><span class="sp-name">${sp.name}</span><div class="sp-desc">${sp.desc}</div></button>`;
-  });
+  if(state.mode==='rogue'){
+    // ローグでは「ランちゅうにストックしたSPカード」だけ使える
+    if(run.spStock.length===0) html += '<div class="sp-desc" style="text-align:center;color:#bbc">手持ちのSPカードがないよ。バトル後の報酬で手に入れよう！</div>';
+    run.spStock.forEach((spi,k)=>{
+      const sp = SP_CARDS[spi];
+      html += `<button class="sp-item" data-i="${spi}" data-stk="${k}"><span class="sp-name">${sp.name}</span><div class="sp-desc">${sp.desc}</div></button>`;
+    });
+  } else {
+    SP_CARDS.forEach((sp,i)=>{
+      html += `<button class="sp-item" data-i="${i}"><span class="sp-name">${sp.name}</span><div class="sp-desc">${sp.desc}</div></button>`;
+    });
+  }
   html += '<button class="ov-cancel" data-i="-1">使わない / とじる</button></div>';
   ov.innerHTML = html;
   ov.classList.remove('hidden');
   ov.querySelectorAll('button').forEach(b=>b.addEventListener('click', ()=>{
     const i = +b.dataset.i;
     state.pendingSp = i>=0 ? i : null;
+    rogueSpPick = (state.mode==='rogue' && b.dataset.stk!==undefined) ? +b.dataset.stk : null;
     ov.classList.add('hidden'); ov.innerHTML = '';
     sndSelect(); updateTacticBtns();
   }));
@@ -1850,7 +2438,11 @@ function confirmMoves(ult){
   const sp = (!state.spUsed[my] && state.pendingSp!==null) ? state.pendingSp : null;
   const raidHand = (!state.raidUsed[my] && state.pendingRaid!==null) ? state.pendingRaid : null;
   state.pendingSp = null; state.pendingRaid = null;
-  if(state.mode==='pve'){
+  if(state.mode==='rogue' && sp!==null && rogueSpPick!==null){
+    run.spStock.splice(rogueSpPick, 1); // ストックを消費
+  }
+  rogueSpPick = null;
+  if(state.mode!=='pvp'){
     rngFn = Math.random;
     const plans = {};
     plans[my] = { sel:[...state.mySel], ult, sp, raidHand };
@@ -1859,7 +2451,7 @@ function confirmMoves(ult){
   } else {
     state.phase = 'wait';
     lockSelectionUI();
-    pvp.myMoves = { t:'moves', turn:state.turn, sel:[...state.mySel], ult, sp, raidHand };
+    pvp.myMoves = { t:'moves', turn:state.turn, sel:[...state.mySel], ult, sp, raidHand, g:pvp.gameIdx };
     try{ pvp.conn.send(pvp.myMoves); }catch(e){}
     showBanner('あいての行動をまっています…', 60000, 'wait');
     tryResolve();
@@ -1882,7 +2474,8 @@ function tryResolve(){
   if(state.mode!=='pvp' || state.phase!=='wait') return;
   const om = pvp.oppMoves[state.turn];
   if(!pvp.myMoves || pvp.myMoves.turn!==state.turn || !om) return;
-  rngFn = mulberry32((pvp.seed ^ Math.imul(state.turn, 0x9E3779B9)) >>> 0);
+  const gSalt = pvp.draft ? Math.imul(pvp.gameIdx+1, 0x85ebca6b) : 0; // ドラフトは各ゲームでシードを変える
+  rngFn = mulberry32((pvp.seed ^ Math.imul(state.turn, 0x9E3779B9) ^ gSalt) >>> 0);
   const plans = {};
   plans[state.mySide] = sanMoves(pvp.myMoves);
   plans[otherSide(state.mySide)] = sanMoves(om);
@@ -1925,12 +2518,15 @@ async function applyDamage(target, dmg, attacker, popCls, eff, st){
   if(attacker && attacker.alive && traitOf(attacker)==='leech'){
     applyHeal(attacker, Math.max(1, Math.round(real*0.25)));
   }
+  if(attacker && attacker.alive && attacker.isAlly && hasRelic('leech_all')){ // お守り:きゅうけつの牙
+    applyHeal(attacker, Math.max(1, Math.round(real*0.15)));
+  }
   if(target.hp<=0 && target.alive){ await killUnit(target); return; }
   if(target.st==='slp' && real>0){
     target.st = null; target.stT = 0; updateStatusUI(target);
     showPopup(target.group.position.clone().add(new THREE.Vector3(0,1.4*target.scl,0)), 'めをさました！', 'st-pop');
   }
-  if(st && target.alive && !target.st && STATUS[st]){
+  if(st && target.alive && !target.st && STATUS[st] && !(target.isAlly && hasRelic('st_immune'))){
     target.st = st; target.stT = (st==='psn') ? 3 : 2;
     updateStatusUI(target);
     snd(200,0.2,'triangle',0.1,-80);
@@ -1939,6 +2535,7 @@ async function applyDamage(target, dmg, attacker, popCls, eff, st){
 }
 function applyHeal(target, amt){
   if(!target.alive) return;
+  const sanc = fieldEff('heal'); if(sanc) amt = Math.round(amt*(1 + sanc.strength*2)); // 聖域:回復UP
   const real = Math.min(amt, target.maxHp-target.hp);
   target.hp += real;
   showPopup(target.group.position.clone().add(new THREE.Vector3(0,0.9*target.scl,0)), '+'+real, 'heal');
@@ -2066,16 +2663,21 @@ async function performSkill(u, skill){
   // ★同期ポイント: 対象・相性・状態異常をシード乱数で確定
   const targets = skill.target==='all' ? [...oppList] : [oppList[gri(oppList.length)]];
   const atk = effAtk(u);
+  // フィールド効果(対称): 濃霧=命中↓ / 雷雲=雷↑ / 静寂=状態異常成功率↓
+  const fog = fieldEff('miss'), storm = fieldEff('thunder'), hush = fieldEff('silence');
+  const stormMul = (storm && skill.elem==='thunder') ? (1 + storm.strength) : 1;
+  const stChMul = hush ? Math.max(0, 1 - hush.strength*1.5) : 1;
   const plans = targets.map(t=>{
     const eff = effOf(skill.elem, t.data.el);
-    const missCh = (traitOf(u)==='sniper') ? 0 : 0.10 + (traitOf(t)==='mirage' ? 0.10 : 0);
+    let missCh = (traitOf(u)==='sniper') ? 0 : 0.10 + (traitOf(t)==='mirage' ? 0.10 : 0);
+    if(missCh>0 && fog) missCh += fog.strength; // しんがん(sniper)は濃霧でも外さない
     const miss = rngFn() < missCh;
     const crit = (traitOf(u)==='crit') && rngFn() < 0.15;
     // 単体ワザ強化: 全体ワザ(3体×0.8〜0.95倍)に対して単体は1.35倍で「集中して1体を落とす」戦略を成立させる
-    let dmg = calcDmg(atk, skill.mult*eff*(skill.target==='all' ? 1 : 1.35));
+    let dmg = calcDmg(atk, skill.mult*eff*stormMul*(skill.target==='all' ? 1 : 1.35));
     if(crit) dmg = Math.round(dmg*1.5);
     return { t, eff, miss, crit, dmg,
-      st:(!miss && skill.st && rngFn() < skill.st.ch) ? skill.st.k : null };
+      st:(!miss && skill.st && rngFn() < skill.st.ch*stChMul) ? skill.st.k : null };
   });
   if((skill.elem==='phys'||skill.elem==='slash') && skill.target!=='all') await meleeAttack(u, plans, skill);
   else await rangedAttack(u, plans, skill);
@@ -2226,7 +2828,7 @@ async function raidAction(side, hand){
   } else {
     if(iDefend){
       oppHand = await pickHandLive('🛡 あいての突撃！ むかえうて！');
-      try{ pvp.conn.send({ t:'rhand', turn:state.turn, hand:oppHand }); }catch(e){}
+      try{ pvp.conn.send({ t:'rhand', turn:state.turn, hand:oppHand, g:pvp.gameIdx }); }catch(e){}
     } else {
       showBanner('あいてが むかえうつ手を えらんでいる…', 8000, 'wait');
       oppHand = await waitOppHand(state.turn);
@@ -2242,6 +2844,7 @@ async function raidAction(side, hand){
     const stolen = state.gauge[opp];
     state.gauge[opp] = 0;
     state.gauge[side] = Math.min(100, state.gauge[side]+stolen);
+    if(side===state.mySide && hasRelic('raid_gauge')) state.gauge[side] = Math.min(100, state.gauge[side]+20); // お守り:とつげきの極意
     updateGaugeUI();
     const fz = (opp===state.mySide) ? 2.6 : -3.0;
     const tz = (side===state.mySide) ? 2.6 : -3.0;
@@ -2290,11 +2893,12 @@ async function fusionAttack(pair, recipe){
   }
   const oppTargets = [...aliveOf(otherSide(side))];
   const dmgBase = effAtk(p1.u) + effAtk(p2.u);
+  const fmul = (side===state.mySide && hasRelic('fusion_up')) ? 1.2 : 1; // お守り:がったいのコア
   if(recipe.blessing){
     flashScreen('#fff8d0', 400, 0.8);
     sndHeal();
     const healAmt = Math.round(dmgBase*1.2);
-    const dmgs = oppTargets.map(t=>calcDmg(dmgBase, recipe.mult * effOf(recipe.elems[0], t.data.el)));
+    const dmgs = oppTargets.map(t=>calcDmg(dmgBase, recipe.mult*fmul * effOf(recipe.elems[0], t.data.el)));
     for(const a of aliveOf(side)){
       burst(a.group.position.clone(), 0xfff0aa, 22, 1.8, 1.1, -2.5);
       applyHeal(a, healAmt);
@@ -2305,7 +2909,7 @@ async function fusionAttack(pair, recipe){
       await applyDamage(oppTargets[i], dmgs[i], p1.u);
     }
   } else {
-    const dmgs = oppTargets.map(t=>calcDmg(dmgBase, recipe.mult * effOf(recipe.elems[0], t.data.el)));
+    const dmgs = oppTargets.map(t=>calcDmg(dmgBase, recipe.mult*fmul * effOf(recipe.elems[0], t.data.el)));
     const beamMat = new THREE.MeshBasicMaterial({ color:col, transparent:true, opacity:0.9, blending:THREE.AdditiveBlending });
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.5,1.1,10,16,1,true), beamMat);
     beam.rotation.x = Math.PI/2;
@@ -2423,6 +3027,15 @@ async function runTurnWith(plans){
   lockSelectionUI();
   $('#banner').innerHTML = '';
 
+  // お守り:どくのキバ — 毎ターン 敵の先頭に「どく」
+  if(hasRelic('poison_lead')){
+    const front = aliveOf(otherSide(state.mySide))[0];
+    if(front && !front.st){
+      front.st = 'psn'; front.stT = 3; updateStatusUI(front);
+      showPopup(front.group.position.clone().add(new THREE.Vector3(0,1.4*front.scl,0)), 'どく！', 'st-pop');
+    }
+  }
+
   const acts = [];
   for(const side of ['A','B']){
     const p = plans[side];
@@ -2491,6 +3104,19 @@ async function runTurnWith(plans){
         applyHeal(u, Math.max(1, Math.round(u.maxHp*0.05)));
       }
     }
+  }
+  // フィールド:灼熱 — 毎ターン全員に小ダメージ(対称)
+  const lava = fieldEff('burn');
+  if(lava){
+    showBanner('🔥 灼熱のダメージ！', 700);
+    for(const side of ['A','B']){
+      for(const u of [...state.units[side]]){
+        if(!u.alive) continue;
+        flashBody(u, 0xff7733, 200);
+        await applyDamage(u, Math.max(1, Math.round(u.maxHp*(0.04 + lava.strength*0.06))), null);
+      }
+    }
+    await sleep(200);
   }
   if(state.ended) return;
   const end2 = checkEnd();
@@ -2657,6 +3283,11 @@ async function endBattle(win, note){
     showBanner('LOSE...', 1400);
   }
   await sleep(900);
+
+  // ローグライト・ランは専用処理(通常のガチャ/進行は通さない)
+  if(state.mode==='rogue'){ await endRogueBattle(win); return; }
+  // ドラフトBO3は1ゲームごとに勝敗を集計(ガチャ報酬なし)
+  if(pvp.draft){ await endDraftGame(win); return; }
 
   const isPvp = state.mode==='pvp';
   const wasBoss = state.bossBattle;
