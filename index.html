@@ -261,6 +261,10 @@
   #rogue-btn:active { transform:translateY(3px); box-shadow:none; }
   #rogue-best-lbl { color:#9aff8a; margin-top:3px; font-size:10px; text-align:center; }
   #rogue-overlay, #draft-overlay { position:absolute; inset:0; z-index:60; background:rgba(6,3,20,0.97); display:flex; flex-direction:column; padding:10px; }
+  .rg-drops { display:flex; flex-direction:column; gap:3px; margin:4px 0 8px; }
+  .rg-drop { font-size:12px; font-weight:700; color:#dcd6ff; }
+  .rg-drop small { color:#9aa; font-weight:600; }
+  .rg-drop.special { color:#ffd95e; text-shadow:0 0 6px #ffb52e88; }
   #dmode-row .mini-btn { flex:1; background:#241a4a; color:#bbc; border:1px solid #4a3f7a; }
   #dmode-row .mini-btn.dsel { background:linear-gradient(180deg,#aef4ff,#3ec8ff); color:#06243f; border-color:#cde6ff; }
   .df-prev { font-size:10px; color:#ffb0e0; background:#2a1430; border:1px solid #5a3f6a; border-radius:8px; padding:5px 8px; margin:4px 0; line-height:1.5; }
@@ -1040,9 +1044,13 @@ function onResize(){
 window.addEventListener('resize', onResize);
 
 /* ---------------- キャラクター3Dモデル ---------------- */
-function makeBody(shape, color){
-  let geo;
-  switch(shape){
+function makeBody(shape, color, mod){
+  let geo, pacman = false;
+  if(mod === 'pacman'){
+    // 前面に楔形の口を開ける（下キャップを抜いて前に向ける）
+    geo = new THREE.SphereGeometry(0.7, 24, 18, 0, Math.PI*2, 0, Math.PI - 0.6);
+    pacman = true;
+  } else switch(shape){
     case 'cube':       geo = new THREE.BoxGeometry(1.1,1.1,1.1); break;
     case 'cone':       geo = new THREE.ConeGeometry(0.72,1.5,20); break;
     case 'cylinder':   geo = new THREE.CylinderGeometry(0.5,0.62,1.35,20); break;
@@ -1050,10 +1058,331 @@ function makeBody(shape, color){
     case 'octahedron': geo = new THREE.OctahedronGeometry(0.8); break;
     default:           geo = new THREE.SphereGeometry(0.68,24,18);
   }
-  return new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
-    color, roughness:0.35, metalness:0.35, emissive:0x000000
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+    color, roughness:0.35, metalness:0.35, emissive:0x000000,
+    side: pacman ? THREE.DoubleSide : THREE.FrontSide
   }));
+  if(pacman) mesh.rotation.x = -Math.PI/2; // 口の開きを正面へ
+  return mesh;
 }
+
+/* ===== マスコット共有パーツ（ジオメトリ/マテリアルは使い回し） ===== */
+const PART = {
+  eyeWhite: new THREE.SphereGeometry(0.135, 12, 10),
+  pupil:    new THREE.SphereGeometry(0.072, 10, 8),
+  hilite:   new THREE.SphereGeometry(0.034, 6, 5),
+  cheek:    new THREE.CircleGeometry(0.1, 14),
+  mouth:    new THREE.TorusGeometry(0.07, 0.022, 6, 14, Math.PI),
+  cowlick:  new THREE.ConeGeometry(0.085, 0.3, 8),
+  foot:     new THREE.SphereGeometry(0.17, 10, 8),
+};
+const PMAT = {
+  white: new THREE.MeshBasicMaterial({ color:0xffffff }),
+  pupil: new THREE.MeshBasicMaterial({ color:0x16182e }),
+  cheek: new THREE.MeshBasicMaterial({ color:0xff9bb0, transparent:true, opacity:0.5 }),
+  mouth: new THREE.MeshBasicMaterial({ color:0x5a2433 }),
+};
+// 顔パーツを乗せる前面の奥行き（ボディ形状ごとに表面付近へ）
+function faceDepth(shape){
+  const m = { cube:0.58, cylinder:0.5, cone:0.52, torus:0.34, octahedron:0.62 };
+  return m[shape] != null ? m[shape] : 0.7;
+}
+
+/* ===== パーツ・ライブラリ（顔表情/足/装飾） ===== */
+// 装飾の共有マテリアル・ジオメトリ（使い回し）
+const AMAT = {
+  gold:  new THREE.MeshStandardMaterial({ color:0xffd24d, roughness:0.3, metalness:0.7 }),
+  red:   new THREE.MeshStandardMaterial({ color:0xe23a4a, roughness:0.5, metalness:0.2 }),
+  pink:  new THREE.MeshStandardMaterial({ color:0xff8fc0, roughness:0.5, metalness:0.1 }),
+  white: new THREE.MeshStandardMaterial({ color:0xfdfdff, roughness:0.5, metalness:0.1 }),
+  ivory: new THREE.MeshStandardMaterial({ color:0xeae3c8, roughness:0.5, metalness:0.1 }),
+  dark:  new THREE.MeshStandardMaterial({ color:0x2a2336, roughness:0.6, metalness:0.2 }),
+  glass: new THREE.MeshStandardMaterial({ color:0x20223a, roughness:0.2, metalness:0.6 }),
+  green: new THREE.MeshStandardMaterial({ color:0x66bb55, roughness:0.5, metalness:0.1 }),
+  halo:  new THREE.MeshBasicMaterial({ color:0xfff3a0 }),
+};
+const AGEO = {
+  band:   new THREE.CylinderGeometry(0.26,0.26,0.16,16,1,true),
+  spike:  new THREE.ConeGeometry(0.06,0.18,8),
+  knot:   new THREE.SphereGeometry(0.055,8,6),
+  bow:    new THREE.ConeGeometry(0.12,0.22,4),
+  petal:  new THREE.SphereGeometry(0.07,8,6),
+  gem:    new THREE.OctahedronGeometry(0.1),
+  horn:   new THREE.ConeGeometry(0.08,0.26,8),
+  disc:   new THREE.CircleGeometry(0.13,14),
+  strap:  new THREE.TorusGeometry(0.5,0.02,6,20),
+  lens:   new THREE.TorusGeometry(0.11,0.022,6,16),
+  bridge: new THREE.BoxGeometry(0.14,0.02,0.02),
+  brow:   new THREE.BoxGeometry(0.14,0.04,0.04),
+  haloT:  new THREE.TorusGeometry(0.28,0.04,8,20),
+  dome:   new THREE.SphereGeometry(0.42,16,10,0,Math.PI*2,0,Math.PI/2),
+  spot:   new THREE.CircleGeometry(0.06,10),
+  tiara:  new THREE.TorusGeometry(0.28,0.025,6,18,Math.PI),
+  fang:   new THREE.ConeGeometry(0.03,0.09,6),
+  mflat:  new THREE.BoxGeometry(0.14,0.026,0.02),
+  mO:     new THREE.TorusGeometry(0.05,0.022,6,12),
+};
+
+function addEyes(group, fz, style, fy){
+  fy = (fy==null) ? 0.2 : fy;
+  const slant = style==='sharp' ? 0.34 : 0;
+  const yS = style==='sleepy' ? 0.5 : (style==='sharp' ? 0.85 : 1.15);
+  for(const sx of [-0.22, 0.22]){
+    const e = new THREE.Mesh(PART.eyeWhite, PMAT.white);
+    e.position.set(sx, fy, fz); e.scale.set(1, yS, 0.6);
+    e.rotation.z = sx>0 ? -slant : slant; group.add(e);
+    const p = new THREE.Mesh(PART.pupil, PMAT.pupil);
+    p.position.set(sx, fy - (style==='sleepy'?0.04:0.02), fz+0.06);
+    if(style==='sharp') p.scale.set(1,0.7,1);
+    group.add(p);
+    const hl = new THREE.Mesh(PART.hilite, PMAT.white);
+    hl.position.set(sx+0.05, fy+0.05, fz+0.1); group.add(hl);
+    if(style==='sparkle'){
+      const hl2 = new THREE.Mesh(PART.hilite, PMAT.white);
+      hl2.position.set(sx-0.04, fy-0.06, fz+0.1); hl2.scale.setScalar(0.7); group.add(hl2);
+    }
+  }
+}
+function addCheeks(group, fz, fy){
+  fy = (fy==null) ? 0.02 : fy;
+  for(const sx of [-0.36, 0.36]){
+    const ch = new THREE.Mesh(PART.cheek, PMAT.cheek);
+    ch.position.set(sx, fy, fz-0.04);
+    ch.rotation.y = sx>0 ? -0.5 : 0.5; group.add(ch);
+  }
+}
+function addMouth(group, fz, style){
+  if(!style || style==='none') return;
+  if(style==='flat'){
+    const m = new THREE.Mesh(AGEO.mflat, PMAT.mouth); m.position.set(0,-0.05,fz+0.02); group.add(m); return;
+  }
+  if(style==='o'){
+    const m = new THREE.Mesh(AGEO.mO, PMAT.mouth); m.position.set(0,-0.05,fz+0.02); group.add(m); return;
+  }
+  const m = new THREE.Mesh(PART.mouth, PMAT.mouth);
+  m.position.set(0,-0.05,fz+0.02); m.rotation.z = Math.PI; group.add(m);
+  if(style==='fang'){
+    for(const sx of [-0.05, 0.05]){
+      const f = new THREE.Mesh(AGEO.fang, PMAT.white);
+      f.position.set(sx,-0.02,fz+0.05); f.rotation.x = Math.PI; group.add(f);
+    }
+  }
+}
+function addFeet(group, style, mat){
+  if(style==='none') return [];
+  const feet = [];
+  const sc = style==='stub' ? [0.82,0.5,0.95] : [1,0.68,1.25];
+  const y  = style==='stub' ? -0.66 : -0.62;
+  for(const sx of [-0.24, 0.24]){
+    const ft = new THREE.Mesh(PART.foot, mat);
+    ft.position.set(sx, y, 0.1); ft.scale.set(sc[0],sc[1],sc[2]);
+    group.add(ft); feet.push(ft);
+  }
+  return feet;
+}
+function addAccessory(group, name, fz){
+  if(!name) return;
+  const add = (geo, mat, x,y,z) => { const m = new THREE.Mesh(geo, mat); m.position.set(x,y,z); group.add(m); return m; };
+  switch(name){
+    case 'crown': {
+      add(AGEO.band, AMAT.gold, 0, 0.8, 0);
+      for(const x of [-0.18, 0, 0.18]) add(AGEO.spike, AMAT.gold, x, 0.95, 0.06);
+      break;
+    }
+    case 'tiara': {
+      const t = add(AGEO.tiara, AMAT.gold, 0, 0.66, 0); t.rotation.z = Math.PI;
+      add(AGEO.gem, AMAT.pink, 0, 0.8, 0.18).scale.setScalar(0.7);
+      break;
+    }
+    case 'ribbon': {
+      const l = add(AGEO.bow, AMAT.pink, -0.16, 0.82, 0); l.rotation.z =  1.4; l.scale.z = 0.4;
+      const r = add(AGEO.bow, AMAT.pink,  0.16, 0.82, 0); r.rotation.z = -1.4; r.scale.z = 0.4;
+      add(AGEO.knot, AMAT.pink, 0, 0.82, 0.02);
+      break;
+    }
+    case 'flower': {
+      const cx = 0.3, cy = 0.5, cz = 0.18;
+      for(let i=0;i<5;i++){ const a=i/5*Math.PI*2; add(AGEO.petal, AMAT.white, cx+Math.cos(a)*0.11, cy+Math.sin(a)*0.11, cz).scale.setScalar(0.8); }
+      add(AGEO.gem, AMAT.gold, cx, cy, cz+0.03).scale.setScalar(0.5);
+      break;
+    }
+    case 'star': {
+      const s = add(AGEO.gem, AMAT.gold, 0, 0.9, 0.05); s.scale.set(1.2,1.2,0.4);
+      break;
+    }
+    case 'horns': {
+      for(const sx of [-1, 1]){
+        const h = add(AGEO.horn, AMAT.ivory, sx*0.22, 0.66, 0.06);
+        h.rotation.z = -sx*0.4;
+      }
+      break;
+    }
+    case 'halo': {
+      const h = add(AGEO.haloT, AMAT.halo, 0, 0.95, 0); h.rotation.x = Math.PI/2.2;
+      break;
+    }
+    case 'mushroom': {
+      const d = add(AGEO.dome, AMAT.red, 0, 0.5, 0); d.scale.set(1.45,0.85,1.45);
+      add(AGEO.spot, AMAT.white, -0.16, 0.62, 0.3).scale.setScalar(0.9);
+      add(AGEO.spot, AMAT.white,  0.18, 0.58, 0.28).scale.setScalar(0.7);
+      break;
+    }
+    case 'eyepatch': {
+      add(AGEO.disc, AMAT.dark, -0.22, 0.2, fz+0.02);
+      const st = add(AGEO.strap, AMAT.dark, 0, 0.34, 0); st.rotation.set(0.2, 0, 0.35);
+      break;
+    }
+    case 'monocle': {
+      const r = add(AGEO.lens, AMAT.glass, 0.22, 0.2, fz+0.02); r.material = AMAT.gold;
+      add(AGEO.brow, AMAT.dark, -0.22, 0.36, fz).rotation.z = 0.12;
+      add(AGEO.brow, AMAT.dark,  0.22, 0.36, fz).rotation.z = -0.12;
+      break;
+    }
+    case 'glasses': {
+      add(AGEO.lens, AMAT.glass, -0.22, 0.2, fz+0.02);
+      add(AGEO.lens, AMAT.glass,  0.22, 0.2, fz+0.02);
+      add(AGEO.bridge, AMAT.dark, 0, 0.2, fz+0.02);
+      break;
+    }
+  }
+}
+
+// 名前ドリブンの個別造形（全100体＋ボス）。色は属性判別維持のため変更しない
+const DESIGN = {
+  // ★1
+  1:  { body:'drop', eyes:'sparkle' },                          // ポヨゴル: しずくスライム
+  2:  { body:'chunky', feet:'stub', eyes:'sharp', mouth:'flat' },// ガレオス: 岩
+  3:  { eyes:'sleepy', mouth:'o' },                             // モグリン: モグラ
+  4:  { accessory:'flower', eyes:'round' },                     // リーフォン: 草
+  5:  { eyes:'sharp', mouth:'flat' },                           // コブナイト
+  6:  { eyes:'sparkle' },                                       // ランターノ: 灯
+  7:  { body:'drop', eyes:'sparkle' },                          // アクアポップ
+  8:  { accessory:'horns', eyes:'sharp', mouth:'fang' },        // インプリル: 小悪魔
+  9:  { body:'pacman', eyes:'o', cheeks:false },                // ビリビット: パックマン口
+  10: { eyes:'round', mouth:'o' },                             // トゲマリモ
+  11: { eyes:'sleepy', mouth:'o' },                            // フロスティ: 雪だるま
+  12: { body:'drop', feet:'none', eyes:'sleepy' },             // ファントムン: 幽霊
+  13: { feet:'stub', eyes:'sleepy' },                          // ドンガメロ: 亀
+  14: { eyes:'sharp', mouth:'fang' },                          // ヒバネズ: 火ねずみ
+  // ★2
+  15: { accessory:'horns', mouth:'fang', eyes:'sharp' },        // ヴォルクドラコ: 竜
+  16: { eyes:'sharp', mouth:'fang' },                          // ガルストーム
+  17: { body:'drop', eyes:'sparkle' },                         // ミラージュ
+  18: { accessory:'flower', eyes:'sparkle' },                  // ティアリエル: 天使
+  19: { eyes:'sharp', mouth:'fang' },                          // ヴェノマー: 毒蛇
+  20: { accessory:'ribbon', eyes:'sparkle' },                  // シルフィン: 妖精
+  21: { eyes:'sharp', mouth:'fang' },                          // マグマロン
+  22: { eyes:'sharp', mouth:'fang' },                          // グレイシオ: 氷狼
+  23: { eyes:'sharp' },                                        // テンペスタ
+  24: { eyes:'sleepy', mouth:'fang' },                         // スケルダイト: 骸骨
+  25: { accessory:'mushroom' },                               // マッシュロード: きのこ
+  26: { body:'drop', eyes:'o', mouth:'o' },                   // ジェルボルト
+  27: { body:'chunky', feet:'stub', eyes:'sharp' },           // デューンゴーレム
+  28: { eyes:'round', mouth:'flat' },                         // クリムゾンクラブ: 蟹
+  29: { accessory:'star', eyes:'sparkle' },                   // ルミナス
+  30: { accessory:'monocle', mouth:'flat' },                  // ガーゴス: 執事風
+  // ★3
+  31: { accessory:'glasses', eyes:'sharp' },                  // メカディノス
+  32: { accessory:'eyepatch', eyes:'sharp' },                 // ナイトファルク: ワル
+  33: { accessory:'crown', eyes:'sharp' },                    // レオンハルト: 王
+  34: { eyes:'sharp', mouth:'fang' },                         // ヴァルタイガ: 虎
+  35: { eyes:'sharp', mouth:'fang' },                         // ルナウルフ
+  36: { accessory:'horns', eyes:'sharp', mouth:'fang' },      // ライドラ: 雷竜
+  37: { body:'chunky', feet:'stub', eyes:'sharp', mouth:'flat' },// グラシエス
+  38: { accessory:'monocle', eyes:'sleepy' },                 // ノクスビショップ: 聖職
+  39: { eyes:'sharp', mouth:'fang' },                         // イグニフェニル: 不死鳥
+  40: { eyes:'sharp' },                                       // プリズマナイト
+  41: { body:'chunky', feet:'stub', eyes:'sharp', mouth:'fang' },// ベヘモットス
+  42: { accessory:'halo', eyes:'sparkle' },                   // セレスドラゴ
+  // ★4
+  43: { body:'drop', eyes:'sparkle' },                        // ミスリルム
+  44: { accessory:'crown', eyes:'sharp', mouth:'fang' },      // ヴァルムンド: 皇帝
+  45: { eyes:'sharp', mouth:'fang' },                         // トールヴァルト
+  46: { accessory:'horns', eyes:'sharp', mouth:'fang' },      // ニヴルドラゴ
+  47: { accessory:'tiara', eyes:'sparkle' },                  // ソルレギナ: 女王
+  48: { accessory:'flower', eyes:'sleepy' },                  // ユキメサイア: 雪女
+  // ★5
+  49: { accessory:'horns', eyes:'sharp', mouth:'fang' },      // ゼノヴァルド: 魔王
+  50: { accessory:'star', eyes:'sparkle' },                   // アストラディア: 星
+  // 追加★1
+  51: { body:'drop', eyes:'sparkle' },                        // コロポン
+  52: { eyes:'sparkle', mouth:'o' },                          // ピヨルル: ひな
+  53: { eyes:'sleepy' },                                      // モクモック: 木
+  54: { body:'drop', eyes:'sparkle' },                        // シズクン: 雫
+  55: { accessory:'star', eyes:'sparkle' },                   // ホタルビ: 蛍
+  56: { body:'chunky', feet:'stub', eyes:'sleepy', mouth:'flat' },// イシコロン: 石
+  57: { eyes:'sparkle' },                                     // カゼリン: 風
+  58: { accessory:'mushroom', eyes:'sleepy' },                // ドクダケ: 毒きのこ
+  59: { eyes:'round', mouth:'o' },                            // ユラメラ
+  60: { body:'drop', feet:'none', eyes:'sleepy' },            // プチレイス: 小幽霊
+  61: { accessory:'flower', eyes:'sparkle' },                 // タネマル: 種
+  62: { eyes:'sharp' },                                       // チクリン: 針
+  63: { accessory:'star', eyes:'sparkle' },                   // ピカリ: 光
+  64: { body:'chunky', feet:'stub', eyes:'sharp', mouth:'flat' },// ヨロイダマ: 鎧
+  // 追加★2
+  65: { body:'chunky', eyes:'sharp', mouth:'fang' },          // フレイムコング: ゴリラ
+  66: { accessory:'flower', eyes:'sparkle' },                 // アクアセイレン: 人魚
+  67: { body:'chunky', feet:'stub', eyes:'sleepy', mouth:'flat' },// ガラゴロン: 岩
+  68: { eyes:'sleepy', mouth:'flat' },                        // シャドウパペット: 人形
+  69: { accessory:'horns', mouth:'fang' },                    // ボルテックル: 角虫
+  70: { accessory:'flower', eyes:'round' },                   // リーフシーカー
+  71: { eyes:'sharp', mouth:'fang' },                         // バーンウルフ
+  72: { accessory:'tiara', eyes:'sparkle' },                  // フロストレディ
+  73: { accessory:'glasses', eyes:'sharp' },                  // サンドシューター
+  74: { accessory:'eyepatch', feet:'none', eyes:'sharp' },    // ゴーストキャプテン: 海賊霊
+  75: { eyes:'sparkle' },                                     // エレキマンタ
+  76: { accessory:'flower', eyes:'sparkle' },                 // ヒカリゴケ
+  77: { feet:'stub', eyes:'round', mouth:'o' },               // マグマイモムシ: 芋虫
+  78: { accessory:'horns', mouth:'fang', eyes:'sharp' },      // カミナリコゾウ: 雷小僧
+  79: { body:'chunky', feet:'stub', accessory:'glasses', eyes:'sleepy' },// シェルマスター: 翁
+  80: { accessory:'halo', eyes:'sparkle' },                   // ホーリーラム: 子羊
+  // 追加★3
+  81: { eyes:'sharp', mouth:'fang' },                         // ブレイズセンチュリオ
+  82: { accessory:'crown', eyes:'sharp', mouth:'flat' },      // アイスファラオ: 王
+  83: { accessory:'horns', mouth:'fang', eyes:'sharp' },      // ライデンキング: 雷神
+  84: { body:'chunky', feet:'stub', eyes:'sharp', mouth:'flat' },// ガイアナイト
+  85: { accessory:'crown', feet:'none', eyes:'sharp' },       // ファントムロード: 亡霊王
+  86: { accessory:'halo', eyes:'sparkle' },                   // セイクリッドハート
+  87: { accessory:'eyepatch', eyes:'sharp' },                 // シノビカゲロウ: 忍
+  88: { eyes:'sparkle' },                                     // クリスタルビースト
+  89: { body:'chunky', feet:'stub', eyes:'sharp', mouth:'fang' },// ヴォルケニックタートル
+  90: { eyes:'sharp', mouth:'fang' },                         // テンペストルーク
+  91: { accessory:'horns', eyes:'sharp', mouth:'fang' },      // ナイトメアテイマー
+  92: { accessory:'halo', eyes:'sharp' },                     // オーロラセイバー
+  // 追加★4
+  93: { accessory:'crown', eyes:'sharp', mouth:'fang' },      // インフェルノデューク
+  94: { accessory:'tiara', eyes:'sparkle' },                  // グレイシャルエンプレス: 女帝
+  95: { eyes:'sharp', mouth:'fang' },                         // トールハンマード
+  96: { body:'chunky', feet:'stub', eyes:'sharp', mouth:'flat' },// アースガルド
+  97: { accessory:'halo', eyes:'sparkle' },                   // セラフィムガード: 熾天使
+  98: { accessory:'horns', eyes:'sharp', mouth:'fang' },      // カオスドラグーン
+  // 追加★5
+  99: { accessory:'horns', eyes:'sharp', mouth:'fang' },      // オリジンフレア
+  100:{ accessory:'halo', eyes:'sparkle' },                   // エターナルルクス: 光
+};
+// ボスは id を持たないため名前キーで割り当て
+const DESIGN_NAME = {
+  'ガーディオン':    { body:'chunky', feet:'stub', eyes:'sharp', mouth:'flat' },
+  'フレイムレックス':{ accessory:'horns', eyes:'sharp', mouth:'fang' },
+  'グレイシャロード':{ accessory:'crown', body:'chunky', feet:'stub', eyes:'sharp', mouth:'flat' },
+  'ヴォイドナイト':  { accessory:'horns', eyes:'sharp', mouth:'fang' },
+  'アルティモス':    { accessory:'halo', eyes:'sharp', mouth:'fang' },
+};
+const HEAD_ACC = { crown:1, ribbon:1, mushroom:1, tiara:1, star:1, flower:1, halo:1, horns:1 };
+function resolveDesign(data){
+  const d = (data && (DESIGN[data.id] || DESIGN_NAME[data.name])) || {};
+  const body = d.body || 'normal';
+  return {
+    body,
+    feet:      d.feet || 'goomba',
+    eyes:      d.eyes || 'round',
+    cheeks:    d.cheeks !== false,
+    cowlick:   d.cowlick !== false,
+    mouth:     d.mouth || (body==='pacman' ? 'none' : 'smile'),
+    accessory: d.accessory || null,
+  };
+}
+
 function addDecorations(group, data){
   const el = data.el;
   if(!el) return;
@@ -1107,18 +1436,34 @@ function createUnit(data, side, idx, opts){
   opts = opts || {};
   const isAlly = (side === state.mySide);
   const group = new THREE.Group();
-  const body = makeBody(data.shape, data.color);
+  const dz = resolveDesign(data);
+  const body = makeBody(data.shape, data.color, dz.body);
+  // ボディ造形（しずく/ずんぐり/丸系ふっくら）
+  if(dz.body==='drop')        body.scale.set(0.95, 1.18, 0.95);
+  else if(dz.body==='chunky') body.scale.set(1.2, 0.86, 1.2);
+  else if(dz.body!=='pacman' && (data.shape==='sphere' || data.shape==='octahedron' || !data.shape)){
+    body.scale.set(1.06, 0.96, 1.06);
+  }
   group.add(body);
   addDecorations(group, data);
-  const eyeG = new THREE.SphereGeometry(0.1,10,8);
-  const pupG = new THREE.SphereGeometry(0.05,8,6);
-  for(const sx of [-0.24, 0.24]){
-    const e = new THREE.Mesh(eyeG, new THREE.MeshBasicMaterial({color:0xffffff}));
-    e.position.set(sx, 0.22, 0.58);
-    const p = new THREE.Mesh(pupG, new THREE.MeshBasicMaterial({color:0x111122}));
-    p.position.set(sx, 0.22, 0.66);
-    group.add(e); group.add(p);
+
+  // ----- 顔（パーツ・ライブラリから合成） -----
+  const fz = (dz.body==='pacman') ? 0.55 : faceDepth(data.shape);
+  const fy = (dz.body==='pacman') ? 0.45 : 0.2;
+  addEyes(group, fz, dz.eyes, fy);
+  if(dz.cheeks) addCheeks(group, fz, (dz.body==='pacman') ? 0.28 : 0.02);
+  addMouth(group, fz, dz.mouth);
+  // 頭のちょいツン（毛束）— 頭頂装飾がある時は省略。ボディ色を使い回し
+  if(dz.cowlick && !HEAD_ACC[dz.accessory]){
+    const cowlick = new THREE.Mesh(PART.cowlick, body.material);
+    cowlick.position.set(0.05, 0.72, 0);
+    cowlick.rotation.z = -0.28;
+    group.add(cowlick);
   }
+  addAccessory(group, dz.accessory, fz);
+  // 足（クリボー風）— ボディ色を使い回し。待機で軽く揺れる
+  const feet = addFeet(group, dz.feet, body.material);
+
   const sh = new THREE.Mesh(
     new THREE.CircleGeometry(0.62,20),
     new THREE.MeshBasicMaterial({ color:0x000000, transparent:true, opacity:0.35 })
@@ -1141,7 +1486,7 @@ function createUnit(data, side, idx, opts){
   $('#labels').appendChild(label);
 
   return {
-    data, side, isAlly, idx, group, body, home, baseRotY, scl,
+    data, side, isAlly, idx, group, body, feet, home, baseRotY, scl,
     hp:data.hp, maxHp:data.hp, atk:data.atk, spd:data.spd,
     st:null, stT:0, gutsUsed:false, guarding:false,
     alive:true, busy:false, boss:!!opts.boss, bobOff:Math.random()*6, label
@@ -1230,6 +1575,11 @@ function loop(t){
     if(u.alive && !u.busy){
       u.group.position.y = u.home.y + Math.sin(t*0.003 + u.bobOff)*0.09;
       u.group.rotation.z = Math.sin(t*0.002 + u.bobOff)*0.04;
+      if(u.feet && u.feet.length){
+        const fs = Math.sin(t*0.006 + u.bobOff)*0.4;
+        u.feet[0].rotation.x = fs;
+        u.feet[1].rotation.x = -fs;
+      }
     }
   }
   updateParticles(dt);
@@ -1685,7 +2035,7 @@ function diffFactors(){
    ================================================================ */
 const ROGUE = {
   RUN_LEN: 10,
-  START_PARTY: [1, 5, 14, 9],   // 固定スタート ★1(氷/大地/炎/雷) Lv1
+  FILL_PARTY: [1, 5, 14, 9, 8, 63], // 案A: 持ち込みが6体未満のとき足りない枠を補う★1(氷/地/炎/雷/闇/光)
   BENCH_HEAL: 0.20,             // 控えの毎戦回復率
   HEAL_PCT: [0.30, 0.45],      // 回復報酬% [d1, d10] を線形補間
   BUFF_PCT: [0.10, 0.20],      // バフ報酬%(攻 or 最大HP)
@@ -1749,17 +2099,63 @@ function rogueInst(e){
   const base = instCard(e.id, e.lv);
   return { ...base, hp: rogueMaxHp(e), atk: Math.round(base.atk * (1 + e.buffAtk)) };
 }
-function startRogueRun(seed){
-  const sd = (seed!==undefined) ? (seed>>>0) : ((Math.random()*0xFFFFFFFF)>>>0);
+let roguePoolSel = null; // 持ち込みでえらんだ手持ちid配列(最大6)
+function startRogueRun(){
+  const sd = ((Math.random()*0xFFFFFFFF)>>>0); // ランごと固定シード(構造の再現用・本体には残さない)
+  // 案A: えらんだ手持ち(育成Lv反映)のコピー + 足りない枠を★1配布で補填 → 6体
+  const picked = (roguePoolSel || []).slice(0, 6);
+  const party = picked.map(id => rogueNewEntry(id, state.owned[id] || 1));
+  let fi = 0;
+  while(party.length < 6){
+    party.push(rogueNewEntry(ROGUE.FILL_PARTY[fi % ROGUE.FILL_PARTY.length], 1));
+    fi++;
+  }
   run = {
     active:true, seed:sd, _rng:mulberry32(sd),
     d:1, cleared:0,
-    party: ROGUE.START_PARTY.map(id=>rogueNewEntry(id, 1)),
+    party,
     deployed:[0,1,2], pendingEnemies:null,
     spStock:[], relics:[], field:null, ascension: Math.max(0, Math.min(rogueMaxAsc(), rogueAscSel)),
   };
   state.mode = 'rogue';
   beginRogueBattle();
+}
+/* 入口: 手持ちから最大6体を選んで持ち込む(6体未満は★1で補填) */
+function showRoguePoolPick(onDone){
+  const ov = $('#rogue-overlay'); ov.classList.remove('hidden');
+  $('#rg-head-d').textContent = '6体をえらぶ';
+  const ids = Object.keys(state.owned).map(Number)
+    .sort((a,b)=>(cardById(b).rare-cardById(a).rare) || ((state.owned[b]||1)-(state.owned[a]||1)) || (a-b));
+  let sel = [];
+  const body = $('#rogue-body');
+  function render(){
+    const fillN = Math.max(0, 6 - sel.length);
+    let h = `<div class="save-box"><div class="save-ttl">🗺 もちこむ6体をえらぼう（${sel.length}/6）</div>
+      <div class="save-lbl">そだてた手持ちを そのまま つれていける！ 足りない分は ★1がついてくる${fillN>0?`（いま ★1×${fillN}体）`:''}<br>※ランで まけても 本体のレベル・HPは へらないよ</div>
+      <div class="rg-grid">`;
+    if(!ids.length) h += `<div class="save-note">手持ちが まだ ないみたい。まずはステージで なかまを あつめよう！</div>`;
+    ids.forEach(id=>{
+      const c = cardById(id), lv = state.owned[id], k = sel.indexOf(id);
+      h += `<div class="rg-tile r${c.rare}${k>=0?' sel':''}" data-i="${id}">
+        ${k>=0?`<div class="rg-badge">${k+1}</div>`:''}
+        <div class="rg-tname">${c.name}${lv>1?` Lv${lv}`:''}</div>
+        <div class="rg-tstat">${'★'.repeat(c.rare)} ${ELEMS[c.el].jp}<br>特性:${TRAITS[CARD_TRAITS[id]].name}</div>
+      </div>`;
+    });
+    const lbl = sel.length>=6 ? 'この6体でスタート！' : `この${sel.length}体＋★1×${6-sel.length}でスタート！`;
+    h += `</div></div><button id="rogue-pool-go">${lbl}</button>`;
+    body.innerHTML = h;
+    body.querySelectorAll('.rg-tile').forEach(t=>t.addEventListener('click', ()=>{
+      const id = +t.dataset.i, k = sel.indexOf(id);
+      if(k>=0) sel.splice(k,1); else { if(sel.length>=6) return; sel.push(id); }
+      sndSelect(); render();
+    }));
+    $('#rogue-pool-go').addEventListener('click', ()=>{
+      roguePoolSel = [...sel];
+      ov.classList.add('hidden'); sndSelect(); onDone();
+    });
+  }
+  render();
 }
 /* 敵生成 (深さ d に応じて diffFactors の考え方を流用) */
 function rogueDiff(){
@@ -1857,18 +2253,13 @@ function rollRewardTier(){
 function rogueRollOneReward(){
   const d = run.d, tier = rollRewardTier(), lvNew = 1 + Math.floor((d-1)/3);
   // カテゴリ抽選 (relic は未所持があるときだけ候補に)
+  // 案A: monster(仲間追加)と恒久強化は廃止。ラン限定の上乗せ5種のみ
   const relicLeft = RELICS.filter(r=>!hasRelic(r.id));
-  const cats = ['monster','buff','heal','spcard','field'];
+  const cats = ['buff','heal','spcard','field'];
   if(relicLeft.length) cats.push('relic');
-  const weight = { monster:26, buff:18, heal:15, spcard:12, field:15, relic:18 };
-  let tot = cats.reduce((a,c)=>a+weight[c],0), r = rgf()*tot, acc = 0, cat = 'monster';
+  const weight = { buff:20, heal:16, spcard:14, field:16, relic:20 };
+  let tot = cats.reduce((a,c)=>a+weight[c],0), r = rgf()*tot, acc = 0, cat = cats[0];
   for(const c of cats){ acc += weight[c]; if(r<acc){ cat = c; break; } }
-  if(cat==='monster'){
-    const cands = CARD_POOL.filter(c=>c.rare===tier);
-    const c = cands[rgi(cands.length)];
-    return { title:`🐾 なかま: ${c.name}`, desc:`${'★'.repeat(c.rare)} ${ELEMS[c.el].jp}属性 / 特性:${TRAITS[CARD_TRAITS[c.id]].name}（パーティに Lv${lvNew} で加わる）`,
-      apply:(cb)=>{ run.party.push(rogueNewEntry(c.id, lvNew)); cb(); } };
-  }
   if(cat==='buff'){
     const isAtk = rgf()<0.5, pct = Math.round(mag(6,4,0.4,tier))/100; // 攻撃バフ% (handoff 3-3)
     return { title:`${isAtk?'⚔':'❤'} ${'★'.repeat(tier)}バフ: ${isAtk?'こうげき':'さいだいHP'}+${Math.round(pct*100)}%`, desc:`1体をえらんで このランのあいだ ずっと ${isAtk?'こうげき力':'さいだいHP'}アップ`,
@@ -1947,32 +2338,75 @@ async function endRogueBattle(win){
   run.d++;
   showRogueReward(()=> beginRogueBattle());
 }
+/* ---- 持ち帰り報酬 (handoff §4): 通常1戦の報酬ロジックを土台に本体へ反映 ---- */
+/* 演出は省き判定だけ回す版。Math.randomでOK(持ち帰りは同期/再現の対象外) */
+function grantNormalDrop(){
+  const isKira = Math.random() < 0.08;
+  const reward = isKira ? rollRewardKira() : rollReward();
+  const capRate = [0, 0.95, 0.85, 0.70, 0.55, 0.40][reward.rare];
+  const captured = Math.random() < capRate;
+  const cur = state.owned[reward.id];
+  const res = { id:reward.id, rare:reward.rare, name:reward.name, kira:isKira, status:'escape' };
+  if(captured){
+    if(!cur){ state.owned[reward.id] = 1; res.status = 'new'; }
+    else if(cur < MAX_LV){ state.owned[reward.id] = cur+1; res.status = 'up'; res.lv = cur+1; }
+    else res.status = 'max';
+  }
+  state.dex.add(reward.id);
+  if(Math.random() < 0.01){ state.tickets = (state.tickets||0) + 1; res.ticket = true; }
+  return res;
+}
+/* 完走2%の特別枠(上乗せ・★4/★5確定・つかまえ確定／射幸性は抑えめ＝ダブりでもOK) */
+function grantSpecialDrop(){
+  const pool = CARD_POOL.filter(c=>c.rare>=4);
+  const c = pool[Math.floor(Math.random()*pool.length)];
+  const cur = state.owned[c.id];
+  const res = { id:c.id, rare:c.rare, name:c.name, special:true, status:'new' };
+  if(!cur){ state.owned[c.id] = 1; res.status = 'new'; }
+  else if(cur < MAX_LV){ state.owned[c.id] = cur+1; res.status = 'up'; res.lv = cur+1; }
+  else res.status = 'max';
+  state.dex.add(c.id);
+  return res;
+}
 function endRogueRun(victory){
-  const cleared = run.cleared, partyN = run.party.length, asc = run.ascension||0;
-  const score = Math.round((cleared*1000 + partyN*120 + (victory ? 5000 : 0)) * (1 + asc*0.25)); // しばりでスコア倍率UP
+  const cleared = run.cleared, asc = run.ascension||0;
+  // ---- 持ち帰り報酬: 未完走=通常1戦と同じ(1回) / 完走=約3倍+2%特別(しばりで倍率UP) ----
+  const drops = [];
+  const dropN = victory ? Math.max(1, Math.round(3 * (1 + 0.34*asc))) : 1;
+  for(let i=0;i<dropN;i++) drops.push(grantNormalDrop());
+  let special = null;
+  if(victory && Math.random() < 0.02) special = grantSpecialDrop();
+  // ---- スコア(しばりで倍率UP・チームサイズは固定なので加点要素から除外) ----
+  const score = Math.round((cleared*1000 + (victory ? 5000 : 0)) * (1 + asc*0.25));
   const best = rogueBest(), isBest = score > best;
   if(isBest) setRogueBest(score);
   // しばり段階クリアで次の段階を解放 (Slay the Spire方式・永続強化ではない)
   if(victory && asc >= rogueMaxAsc()) setRogueMaxAsc(asc + 1);
+  saveGame(); // 持ち帰り報酬(owned/dex/tickets)を本体に保存
   run.active = false; run = null; state.mode = 'pve';
-  showRogueEnd(victory, cleared, partyN, score, isBest, asc);
+  showRogueEnd(victory, cleared, score, isBest, asc, drops, special);
 }
-function showRogueEnd(victory, cleared, partyN, score, isBest, asc){
+function showRogueEnd(victory, cleared, score, isBest, asc, drops, special){
   const ov = $('#rogue-overlay'); ov.classList.remove('hidden');
   $('#rg-head-d').textContent = victory ? 'クリア！' : 'おわり';
   if(victory){ sndWin(); } else { sndLose(); }
   const unlocked = victory && (asc||0)+1 === rogueMaxAsc();
+  const stTxt = d => d.status==='new' ? '✨NEW!' : d.status==='up' ? `Lv${d.lv}に↑` : d.status==='max' ? 'Lv MAX' : 'にげられた…';
+  const line = d => `<div class="rg-drop${d.special?' special':''}">${d.special?'🌟 ':''}${'★'.repeat(d.rare)} ${d.name} <small>${stTxt(d)}</small>${d.kira?' ✨':''}${d.ticket?' 🎫':''}</div>`;
+  const dropsHtml = drops.map(line).join('') + (special ? line(special) : '');
   $('#rogue-body').innerHTML = `<div class="save-box" style="text-align:center">
     <div class="save-ttl" style="font-size:20px;color:${victory?'#ffd95e':'#7a8fbb'}">${victory?'🏆 ラン クリア！！':'💀 ランしゅうりょう'}</div>
-    <div class="save-lbl">突破: <b>${cleared}</b>戦 ／ あつめたなかま <b>${partyN}</b>体 ／ しばりLv<b>${asc||0}</b></div>
+    <div class="save-lbl">突破: <b>${cleared}</b>戦 ／ しばりLv<b>${asc||0}</b></div>
     <div class="save-lbl" style="font-size:18px;color:#8fe3ff">スコア <b>${score}</b>${isBest?' <span style="color:#6dffa0">🎉ベスト更新！</span>':''}</div>
     ${unlocked?`<div class="save-lbl" style="color:#ff7df0">🔓 しばりLv${rogueMaxAsc()} 解放！つぎはもっと手ごわいぞ</div>`:''}
-    <div class="save-note">ベストスコア: ${rogueBest()}（永続強化はなし。腕前だけが頼り！）</div>
+    <div class="save-lbl" style="margin-top:8px;color:#ffd95e">🎁 もちかえり報酬${victory?'（完走ボーナス！）':'（とちゅうでも 1回ぶん）'}</div>
+    <div class="rg-drops">${dropsHtml || '<small>なし</small>'}</div>
+    <div class="save-note">ラン中の お守り・フィールド・バフは 持ち帰らないよ（記録は スコアと しばり段階だけ）</div>
     <button id="rogue-end-btn" class="mini-btn save-act go">メニューにもどる</button>
   </div>`;
   $('#rogue-end-btn').addEventListener('click', ()=>{ sndSelect(); ov.classList.add('hidden'); renderSelect(); });
 }
-$('#rogue-btn').addEventListener('click', ()=>{ sndSelect(); startRogueRun(); });
+$('#rogue-btn').addEventListener('click', ()=>{ sndSelect(); showRoguePoolPick(()=> startRogueRun()); });
 $('#rogue-quit').addEventListener('click', ()=>{
   if(run && run.active){ if(confirm('ランをやめてメニューにもどる？（スコアは記録されるよ）')) endRogueRun(false); }
   else { $('#rogue-overlay').classList.add('hidden'); renderSelect(); }
